@@ -1,0 +1,38 @@
+# Python 字节码和缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 虚拟环境
+.venv/
+venv/
+
+# IDE 本地配置
+.vscode/
+.idea/
+
+# 工具缓存
+.ruff_cache/
+.claude/
+
+# 用户配置
+config.json
+configs/
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.pid
+
+# 操作系统垃圾文件
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# PyInstaller 打包相关
+*.spec
+dist/
+build/

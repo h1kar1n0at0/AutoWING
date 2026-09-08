@@ -1,0 +1,9 @@
+flask>=3.0
+pywebview>=6.0
+opencv-python>=4.8
+numpy>=1.24
+playwright>=1.40
+pyyaml>=6.0
+mss>=9.0
+pillow>=10.0
+pywin32>=306

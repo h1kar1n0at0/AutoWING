@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoWING - 控制面板</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="header-left">
+                <span class="logo">✨ AutoWING</span>
+            </div>
+            <div class="header-right">
+                <span class="badge" id="statusBadge">● 未连接</span>
+            </div>
+        </header>
+
+        <div class="main">
+            <!-- 左列: 脚本设置 -->
+            <div class="panel-left">
+                <section class="card">
+                    <div class="card-title">⚙️ 脚本设置</div>
+                    <div class="card-body" id="settingsPanel">
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <label class="setting-label">难度</label>
+                                <select id="cfgDifficulty" class="setting-select">
+                                    <option value="medium">中等</option>
+                                    <option value="hard">困难</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">策略选择</label>
+                                <select id="cfgStrategy" class="setting-select">
+                                    <option value="TE">TE</option>
+                                    <option value="140">140</option>
+                                    <option value="230">230</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">执行次数</label>
+                                <div class="setting-inline">
+                                    <input type="number" id="cfgMaxRuns" value="0" min="0" class="setting-input-narrow">
+                                    <span class="setting-hint">(0=无限)</span>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">主要属性</label>
+                                <select id="cfgMainStat" class="setting-select">
+                                    <option value="vocal">Vocal</option>
+                                    <option value="dance">Dance</option>
+                                    <option value="visual">Visual</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">体力道具</label>
+                                <label class="toggle-row">
+                                    <input type="checkbox" id="cfgEnergyItem" checked>
+                                    <span class="toggle-text">自动使用</span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">体力倍率</label>
+                                <select id="cfgEnergyMultiplier" class="setting-select">
+                                    <option value="1">1 倍</option>
+                                    <option value="3">3 倍</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">Mem</label>
+                                <label class="toggle-row">
+                                    <input type="checkbox" id="cfgUseMem">
+                                    <span class="toggle-text">使用 Mem 道具</span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">处理约定</label>
+                                <label class="toggle-row">
+                                    <input type="checkbox" id="cfgHandleAgreement">
+                                    <span class="toggle-text">自动处理约定事件</span>
+                                </label>
+                            </div>
+                            <div class="setting-item setting-item-full">
+                                <label class="setting-label">连续挖矿</label>
+                                <label class="toggle-row">
+                                    <input type="checkbox" id="cfgAutoContinuousMining">
+                                    <span class="toggle-text">启用自动连续挖矿</span>
+                                </label>
+                            </div>
+                            <div class="setting-item setting-item-full">
+                                <label class="setting-label">窗口标题</label>
+                                <input type="text" id="windowTitle" value="アイドルマスター シャイニーカラーズ" class="setting-input">
+                            </div>
+                            <div class="setting-item setting-item-full">
+                                <label class="setting-label">浏览器路径</label>
+                                <div class="setting-inline">
+                                    <input type="text" id="browserPath" value="" placeholder="C:\Program Files\Vivaldi\Application\vivaldi.exe" class="setting-input">
+                                    <button class="btn btn-sm btn-outline" onclick="browseBrowserPath()">📂 浏览</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-actions">
+                            <button class="btn btn-sm btn-primary" onclick="saveStrategyConfig()">💾 保存</button>
+                            <button class="btn btn-sm btn-outline" onclick="loadStrategyConfig()">📂 读取</button>
+                            <button class="btn btn-sm btn-outline" onclick="resetStrategyConfig()">↺ 重置</button>
+                        </div>
+                        <details class="advanced-settings">
+                            <summary>高级设置</summary>
+                            <div class="adv-body">
+                                <div class="form-row">
+                                    <label>等待时间修正</label>
+                                    <input type="number" id="cfgWaitOffset" value="0" min="0" max="10" step="0.1" class="setting-input-narrow">
+                                    <span class="setting-hint">(秒, 0-10)</span>
+                                </div>
+                                <div class="form-row">
+                                    <label>育成前额外偏移</label>
+                                    <input type="number" id="cfgPreWaitOffset" value="0" min="0" max="10" step="0.1" class="setting-input-narrow">
+                                    <span class="setting-hint">(秒, 0-10)</span>
+                                </div>
+                                <div class="form-row">
+                                    <label>循环间隔配置</label>
+                                    <input type="number" id="cfgLoopInterval" value="0.05" min="0.05" max="1" step="0.05" class="setting-input-narrow">
+                                    <span class="setting-hint">(秒, 0.05-1)</span>
+                                </div>
+                                <div class="form-row">
+                                    <label>QTE间隔时长偏移</label>
+                                    <input type="number" id="cfgQteIntervalOffset" value="0" min="-1" max="1" step="0.1" class="setting-input-narrow">
+                                    <span class="setting-hint">(秒, -1~1)</span>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 中列: 技能学习顺序 + 主动技能优先级 -->
+            <div class="panel-mid">
+                <section class="card">
+                    <div class="card-title">📋 技能学习顺序</div>
+                    <div class="card-body">
+                        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">
+                            点击技能树各节点，按学习顺序记录位置
+                        </div>
+                        <div id="learnOrderList" style="font-size:11px;max-height:120px;overflow-y:auto;margin-bottom:6px">
+                            <span style="color:var(--text-dim)">(空)</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-secondary" onclick="recordLearnOrder()">🎯 录制</button>
+                            <button class="btn btn-sm btn-outline" onclick="clearLearnOrder()">🗑️ 清空</button>
+                            <button class="btn btn-sm btn-outline" onclick="exportLearnOrder()">📤 导出</button>
+                            <button class="btn btn-sm btn-outline" onclick="importLearnOrder()">📥 导入</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-title">⚡ 主动技能优先级</div>
+                    <div class="card-body">
+                        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">
+                            从 assets/skills/ 选取技能图标，拖拽排序 (显示中文名)
+                        </div>
+                        <div id="skillPriorityList" style="font-size:11px;max-height:200px;overflow-y:auto;margin-bottom:6px">
+                            <span style="color:var(--text-dim)">(加载中...)</span>
+                        </div>
+                        <button class="btn btn-sm btn-primary" onclick="saveSkillPriority()">💾 保存优先级</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 右列: 窗口绑定 + 任务控制 + 运行日志 -->
+            <div class="panel-right">
+                <section class="card">
+                    <div class="card-title">🎯 窗口绑定</div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <span class="label">窗口:</span>
+                            <span class="value" id="windowStatus">未绑定</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="detectCanvas()">CDP 检测</button>
+                            <button class="btn btn-outline" onclick="resizeCanvas()">调整窗口</button>
+                            <button class="btn btn-outline" onclick="restartBrowserWithCDP()">重启浏览器(CDP)</button>
+                            <button class="btn btn-outline" onclick="bindWindow()">绑定窗口</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-title">🎮 任务控制</div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <span class="label">状态:</span>
+                            <span class="value" id="taskStatus">空闲</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-success" onclick="startTask()">▶ 启动</button>
+                            <button class="btn btn-danger" onclick="stopTask()">■ 停止</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card log-card">
+                    <div class="card-title">
+                        📋 运行日志
+                        <button class="btn btn-sm btn-outline" onclick="clearLog()">清除</button>
+                    </div>
+                    <div class="card-body log-body" id="logContainer">
+                        <div class="log-empty">等待日志...</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- 录制弹窗 -->
+    <div class="modal-overlay" id="recordModal" style="display:none" onclick="if(event.target===this)closeRecordModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">🎯 录制技能学习顺序</span>
+                <button class="btn btn-sm btn-outline" onclick="closeRecordModal()">✕ 关闭</button>
+            </div>
+            <div class="modal-body">
+                <div class="record-instructions" id="recordInstructions">
+                    <p><strong>方式一：在截图上点击</strong></p>
+                    <p>单击截图上的技能节点，记录坐标。</p>
+                    <p>已记录 <strong id="recordCount">0</strong> 个点</p>
+                </div>
+                <div class="record-img-wrap" id="recordImageWrap">
+                    <img id="recordCanvasImg" src="" alt="加载中..." class="record-img"
+                         onclick="handleRecordClick(event)">
+                    <div id="recordMarkers" class="record-markers"></div>
+                </div>
+                <div class="record-coord-input">
+                    <span>或手动输入: X=</span>
+                    <input type="number" id="manualRecX" class="record-input" step="1">
+                    <span>Y=</span>
+                    <input type="number" id="manualRecY" class="record-input" step="1">
+                    <span>等待(s)=</span>
+                    <input type="number" id="manualRecWait" class="record-input" value="0.3" step="0.1">
+                    <button class="btn btn-sm btn-primary" onclick="addManualPoint()">➕ 添加</button>
+                </div>
+                <div id="recordedPoints" class="recorded-points">
+                    <span style="color:var(--text-dim)">(还没有记录点)</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="clearRecordedPoints()">🗑️ 清空</button>
+                <button class="btn btn-success" onclick="saveRecordedPoints()">💾 保存并关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
