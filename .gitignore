@@ -36,3 +36,6 @@ Desktop.ini
 *.spec
 dist/
 build/
+
+# 测试文件
+tests/

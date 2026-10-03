@@ -9,7 +9,7 @@ from typing import Optional
 import time
 
 from app.engine.action import Action, WaitAction, SequenceAction
-from app.engine.action_utils import click_xy, click_xy_qte, click_skip, skip_story_with_multiple_clicks, refresh_page
+from app.engine.action_utils import click_xy, click_xy_qte, refresh_page, long_click_xy
 from app.engine.config_models import config_manager
 from app.engine.flows.base import Flow
 from app.engine.context import Context
@@ -145,18 +145,21 @@ class AuditionFightFlow(Flow):
                     logger.warning("跳转限流: 已达到跳转上限，等待中...")
                     return WaitAction(seconds=1.5)
                 
+            if self._detector.detect_judge_details():
+                    logger.info("检测到评委详情页面，关闭页面")
+                    return SequenceAction(actions=(long_click_xy(800, 800,duration= 0.05,desc="关闭评委详情"), WaitAction(seconds=0.15)))
             
             if self._detector.detect_turn_start():
                 self._step = "evaluate"
                 self._turn_count += 1
                 logger.info(f"第 {self._turn_count} 回合开始")
                 self._just_entered_wait_turn = True  # 重置标记
-                return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.15),click_xy(818, 589),WaitAction(seconds=0.3)))
+                return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.15),click_xy(818, 589),WaitAction(seconds=0.33)))
             elif self._detector._is_post_audition():
                 logger.info("视镜战斗结束")
                 ctx.season_data["in_multi_step_decision"] = False
                 return None
-
+            
             return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
         
         # ─── 评估并决策 ──────────────────────

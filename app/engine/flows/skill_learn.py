@@ -70,12 +70,12 @@ class SkillLearnFlow(Flow):
         if not order:
             logger.warning("⚠️ skill_learn_order 为空，技能学习 Flow 退出")
             ctx.season_data["in_multi_step_decision"] = False
-            return SequenceAction(actions=(WaitAction(seconds=0.05),click_back(),WaitAction(seconds=0.05)))
+            return SequenceAction(actions=(WaitAction(seconds=0.25),click_back(),WaitAction(seconds=0.05)))
             
         if self.is_all_learned():
             logger.info("✅ 所有技能已学习完成，退出")
             ctx.season_data["in_multi_step_decision"] = False
-            return SequenceAction(actions=(WaitAction(seconds=0.05),click_back(),WaitAction(seconds=0.05)))
+            return SequenceAction(actions=(WaitAction(seconds=0.25),click_back(),WaitAction(seconds=0.05)))
 
         # WAIT_IDLE: 等待 learning_idle
         if self._step == "wait_idle":

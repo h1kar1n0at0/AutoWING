@@ -71,7 +71,11 @@ class Context:
         """季度切换 (S1 -> S2 -> S3...)"""
         changed = season != self.season
         if changed and season is not None:
+            # 保留 jump_records，避免季度切换重置跳转限流计时
+            jump_records = self.season_data.get("jump_records")
             self.season_data.clear()
+            if jump_records is not None:
+                self.season_data["jump_records"] = jump_records
             self.remaining_weeks = 8
             # 策略可以在此处由 StrategyRegistry 载入并直接赋值给 self.strategy
         self.season = season

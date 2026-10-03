@@ -25,7 +25,7 @@
 from app.engine.action import (ClickAction, AccelClickAction, SequenceAction, 
                                WaitForTemplateAction, RefreshAction, NavigateAction, 
                                ForwardAction, QteClickAction, BackAction, WaitAction, 
-                               ScrollAction, ContinuousScrollAction)
+                               ScrollAction, ContinuousScrollAction, LongClickAction)
 from app.engine.detector import TemplateDetector
 from app.engine.templates import Templates
 from app.engine.config_models import config_manager
@@ -39,6 +39,9 @@ def click_xy(x: float, y: float, desc: str = "点击") -> ClickAction:
     """点击指定坐标（动态，由调用方传入）"""
     return ClickAction(x=x, y=y, description=desc)
 
+def long_click_xy(x: float, y: float, duration: float = 1.0, desc: str = "长按") -> ClickAction:
+    """长按指定坐标（动态，由调用方传入）"""
+    return LongClickAction(x=x, y=y, duration=duration, description=desc)
 
 def click_xy_qte(x: float, y: float, desc: str = "点击") -> ClickAction:
     """点击指定坐标 用于视镜qte（动态，由调用方传入）"""

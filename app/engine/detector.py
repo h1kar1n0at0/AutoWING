@@ -65,6 +65,8 @@ class TemplateDetector(GameStateDetector):
     PAGE_SMALL_TOP_ROI = (0, 1, 150, 63)
     # post_training
     PAGE_POST_TRAINING = (803,571,250,130)
+    # judge_details
+    PAGE_JUDGE_DETAILS = (685, 735, 235, 115)
 
     # ── 季度 / 周数 ──────────────────────────
     SEASON_BADGE_ROI = (490, 0, 96, 60)          # s1~s5 标识
@@ -277,6 +279,14 @@ class TemplateDetector(GameStateDetector):
         elif hit.conf >= 0.50:
             return 2
         return 3
+
+    def detect_judge_details(self) -> bool:
+        """检测是否在评审详情页面"""
+        return find(
+            Templates.page("judge_details"),
+            conf=CONF_MED,
+            region=self.PAGE_JUDGE_DETAILS
+        ) is not None
 
     # ═══════════════════════════════════════════
     # 技能学习

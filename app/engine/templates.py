@@ -24,7 +24,6 @@ class Templates:
     """模板路径注册表 — 所有图片路径集中在这里"""
 
     # ── 育成中页面标识 (assets/pages/) ─────────────
-    # 检测区域: (77, 187, 504, 107)
     PAGES = {
         "main":              "assets/pages/main.png",
         "skill_unlock":      "assets/pages/skill_unlock.png",
@@ -32,6 +31,7 @@ class Templates:
         "pre_audition":      "assets/pages/pre_audition.png",
         "post_audition":     "assets/pages/post_audition.png",
         "in_audition":       "assets/pages/in_audition.png",
+        "judge_details":     "assets/pages/judge_details.png",
     }
 
     # ── 全局状态入口 (assets/global/) ────────────
