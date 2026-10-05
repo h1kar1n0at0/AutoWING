@@ -10,6 +10,7 @@ from typing import Optional
 from flask import Flask
 
 from app.api.routes import bp as api_bp
+from app.notify.runtime import start_notification_service, stop_notification_service
 
 logger = logging.getLogger("autowing.server")
 
@@ -37,6 +38,7 @@ class FlaskServer:
         self.port = port
         self.app = create_app()
         self._thread: Optional[threading.Thread] = None
+        start_notification_service()
 
     @property
     def url(self) -> str:
@@ -60,4 +62,5 @@ class FlaskServer:
 
     def stop(self):
         """停止服务器 (Flask 开发服务器不支持外部停止，但 daemon=True 会在主进程退出时自动结束)"""
+        stop_notification_service()
         logger.info("Flask 服务器停止")

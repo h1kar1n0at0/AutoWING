@@ -138,6 +138,54 @@ body {
     padding: 10px 14px;
 }
 
+.collapsible-body {
+    display: block;
+}
+
+.collapsible-body.is-collapsed {
+    display: none;
+}
+
+.collapse-btn {
+    width: 24px;
+    height: 22px;
+    padding: 0;
+    position: relative;
+    color: var(--text-dim);
+    border: 0;
+    background: transparent;
+}
+
+.collapse-btn::before {
+    content: "▶";
+    display: block;
+    font-size: 9px;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.collapse-btn[aria-expanded="true"]::before {
+    transform: rotate(90deg);
+}
+
+.collapse-btn:hover {
+    color: var(--text);
+    background: transparent;
+}
+
+.notification-urls {
+    min-height: 62px;
+    resize: vertical;
+    line-height: 1.4;
+}
+
+.notification-grid {
+    margin-top: 8px;
+}
+
+.notification-actions {
+    margin-top: 8px;
+}
+
 /* ── Info rows ─────────────────────────── */
 
 .info-row {

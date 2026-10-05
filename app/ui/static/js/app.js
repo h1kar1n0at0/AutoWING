@@ -168,6 +168,12 @@ function getSettingsFromUI() {
         pre_wait_offset: clampNumber($("cfgPreWaitOffset").value, 0, 10, 0),
         qte_interval_offset: clampNumber($("cfgQteIntervalOffset").value, -1, 1, 0),
         loop_interval: clampNumber($("cfgLoopInterval").value, 0.05, 1, 0.05),
+        notifications_enabled: $("cfgNotificationsEnabled").checked,
+        notification_urls: $("notificationUrls").value.split(/\r?\n/).map((url) => url.trim()).filter(Boolean),
+        notification_min_level: $("cfgNotificationMinLevel").value,
+        notification_dedup_seconds: clampNumber($("cfgNotificationDedup").value, 0, 86400, 60),
+        notification_rate_limit_seconds: clampNumber($("cfgNotificationRateLimit").value, 0, 86400, 30),
+        notification_queue_size: Math.round(clampNumber($("cfgNotificationQueueSize").value, 1, 1000, 100)),
     };
 }
 
@@ -186,6 +192,43 @@ function setSettingsToUI(cfg) {
     if (cfg.pre_wait_offset !== undefined) $("cfgPreWaitOffset").value = clampNumber(cfg.pre_wait_offset, 0, 10, 0);
     if (cfg.qte_interval_offset !== undefined) $("cfgQteIntervalOffset").value = clampNumber(cfg.qte_interval_offset, -1, 1, 0);
     if (cfg.loop_interval !== undefined) $("cfgLoopInterval").value = clampNumber(cfg.loop_interval, 0.05, 1, 0.05);
+    if (cfg.notifications_enabled !== undefined) $("cfgNotificationsEnabled").checked = cfg.notifications_enabled;
+    if (cfg.notification_urls !== undefined) $("notificationUrls").value = (cfg.notification_urls || []).join("\n");
+    if (cfg.notification_min_level) $("cfgNotificationMinLevel").value = cfg.notification_min_level;
+    if (cfg.notification_dedup_seconds !== undefined) $("cfgNotificationDedup").value = clampNumber(cfg.notification_dedup_seconds, 0, 86400, 60);
+    if (cfg.notification_rate_limit_seconds !== undefined) $("cfgNotificationRateLimit").value = clampNumber(cfg.notification_rate_limit_seconds, 0, 86400, 30);
+    if (cfg.notification_queue_size !== undefined) $("cfgNotificationQueueSize").value = Math.round(clampNumber(cfg.notification_queue_size, 1, 1000, 100));
+}
+
+function toggleCard(cardId) {
+    const card = $(cardId);
+    if (!card) return;
+    const body = card.querySelector(".collapsible-body");
+    const button = card.querySelector(".collapse-btn");
+    if (!body) return;
+    const collapsed = body.classList.toggle("is-collapsed");
+    if (button) {
+        button.setAttribute("aria-expanded", String(!collapsed));
+    }
+}
+
+async function sendNotificationTest() {
+    try {
+        const response = await fetch("/api/notifications/test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+        });
+        const data = await response.json();
+        if (data.success && data.queued) {
+            addLog("info", "🔔 测试通知已进入发送队列");
+        } else if (data.success) {
+            addLog("warning", "⚠️ 测试通知未入队，请检查通知是否启用及 URL 配置");
+        } else {
+            addLog("error", `❌ ${data.error || "测试通知失败"}`);
+        }
+    } catch (e) {
+        addLog("error", `❌ ${e.message}`);
+    }
 }
 
 async function saveStrategyConfig() {

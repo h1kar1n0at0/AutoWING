@@ -16,6 +16,10 @@ from app.core import coord, clicker, CanvasDetector
 from app.config import config
 from app.api.log_handler import get_log_handler
 from app.paths import ASSETS_DIR
+from app.engine.config_models import config_manager
+from app.notify.config import merge_notification_urls, mask_notification_urls
+from app.notify.events import NotificationEvent, NotificationLevel
+from app.notify.runtime import get_notification_service, reload_notification_service
 
 logger = logging.getLogger("autowing.api")
 
@@ -216,13 +220,45 @@ def api_config():
 @bp.route("/api/strategy-config", methods=["GET", "POST"])
 def api_strategy_config():
     """读写策略配置"""
-    from app.engine.config_models import config_manager
     if request.method == "GET":
-        return jsonify({"success": True, "config": config_manager.config.to_dict()})
+        data = config_manager.config.to_dict()
+        data["notification_urls"] = mask_notification_urls(data.get("notification_urls", []))
+        return jsonify({"success": True, "config": data})
     data = request.get_json(silent=True) or {}
-    updated = config_manager.update(data.get("config", data))
+    submitted = data.get("config", data)
+    if not isinstance(submitted, dict):
+        return jsonify({"success": False, "error": "配置格式错误"}), 400
+    merged = config_manager.config.to_dict()
+    merged.update(submitted)
+    if "notification_urls" in submitted:
+        urls = submitted["notification_urls"]
+        if not isinstance(urls, list):
+            return jsonify({"success": False, "error": "通知 URL 必须是数组"}), 400
+        merged["notification_urls"] = merge_notification_urls(
+            config_manager.config.notification_urls, urls)
+    updated = config_manager.update(merged)
+    reload_notification_service()
+    response_data = updated.to_dict()
+    response_data["notification_urls"] = mask_notification_urls(
+        response_data.get("notification_urls", []))
     get_log_handler().add_log("info", "💾 策略配置已保存")
-    return jsonify({"success": True, "config": updated.to_dict()})
+    return jsonify({"success": True, "config": response_data})
+
+
+@bp.route("/api/notifications/test", methods=["POST"])
+def api_notifications_test():
+    """异步入队一条手动测试通知。"""
+    data = request.get_json(silent=True) or {}
+    event = NotificationEvent(
+        event_type="manual_test",
+        level=NotificationLevel.INFO,
+        title=str(data.get("title") or "AutoWING 测试通知"),
+        body=str(data.get("body") or "通知渠道测试成功"),
+        dedup_key="manual-test",
+        bypass_level_filter=True,
+    )
+    queued = get_notification_service().publish(event)
+    return jsonify({"success": True, "queued": queued})
 
 
 @bp.route("/api/strategy-config/reset", methods=["POST"])

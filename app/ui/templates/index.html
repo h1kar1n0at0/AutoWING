@@ -137,9 +137,14 @@
 
             <!-- 中列: 技能学习顺序 + 主动技能优先级 -->
             <div class="panel-mid">
-                <section class="card">
-                    <div class="card-title">📋 技能学习顺序</div>
-                    <div class="card-body">
+                <section class="card" id="learnOrderCard">
+                    <div class="card-title">
+                        <span>📋 技能学习顺序</span>
+                        <button class="btn btn-sm btn-outline collapse-btn" type="button"
+                            title="展开或收起" aria-label="展开或收起" aria-expanded="false"
+                            onclick="toggleCard('learnOrderCard')"></button>
+                    </div>
+                    <div class="card-body collapsible-body is-collapsed">
                         <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">
                             点击技能树各节点，按学习顺序记录位置
                         </div>
@@ -155,9 +160,14 @@
                     </div>
                 </section>
 
-                <section class="card">
-                    <div class="card-title">⚡ 主动技能优先级</div>
-                    <div class="card-body">
+                <section class="card" id="skillPriorityCard">
+                    <div class="card-title">
+                        <span>⚡ 主动技能优先级</span>
+                        <button class="btn btn-sm btn-outline collapse-btn" type="button"
+                            title="展开或收起" aria-label="展开或收起" aria-expanded="false"
+                            onclick="toggleCard('skillPriorityCard')"></button>
+                    </div>
+                    <div class="card-body collapsible-body is-collapsed">
                         <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">
                             从 assets/skills/ 选取技能图标，拖拽排序 (显示中文名)
                         </div>
@@ -165,6 +175,56 @@
                             <span style="color:var(--text-dim)">(加载中...)</span>
                         </div>
                         <button class="btn btn-sm btn-primary" onclick="saveSkillPriority()">💾 保存优先级</button>
+                    </div>
+                </section>
+
+                <section class="card" id="notificationSettingsCard">
+                    <div class="card-title">
+                        <span>🔔 通知设置</span>
+                        <button class="btn btn-sm btn-outline collapse-btn" type="button"
+                            title="展开或收起" aria-label="展开或收起" aria-expanded="false"
+                            onclick="toggleCard('notificationSettingsCard')"></button>
+                    </div>
+                    <div class="card-body collapsible-body is-collapsed" id="notificationSettingsBody">
+                        <div class="setting-item setting-item-full">
+                            <label class="setting-label" for="notificationUrls">Apprise URL</label>
+                            <textarea id="notificationUrls" class="setting-input notification-urls"
+                                      placeholder="每行一个通知 URL"></textarea>
+                            <span class="setting-hint">凭据仅保存在本机配置文件，界面回显会自动掩码</span>
+                        </div>
+                        <div class="settings-grid notification-grid">
+                            <div class="setting-item">
+                                <label class="setting-label" for="cfgNotificationsEnabled">启用通知</label>
+                                <label class="toggle-row">
+                                    <input type="checkbox" id="cfgNotificationsEnabled">
+                                    <span class="toggle-text">后台发送</span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label" for="cfgNotificationMinLevel">最低级别</label>
+                                <select id="cfgNotificationMinLevel" class="setting-select">
+                                    <option value="warning">警告及错误</option>
+                                    <option value="error">仅错误</option>
+                                    <option value="info">全部通知</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label" for="cfgNotificationDedup">去重窗口（秒）</label>
+                                <input type="number" id="cfgNotificationDedup" min="0" step="1" value="60" class="setting-input">
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label" for="cfgNotificationRateLimit">限流窗口（秒）</label>
+                                <input type="number" id="cfgNotificationRateLimit" min="0" step="1" value="30" class="setting-input">
+                            </div>
+                            <div class="setting-item setting-item-full">
+                                <label class="setting-label" for="cfgNotificationQueueSize">队列容量</label>
+                                <input type="number" id="cfgNotificationQueueSize" min="1" max="1000" step="1" value="100" class="setting-input">
+                            </div>
+                        </div>
+                        <div class="btn-group notification-actions">
+                            <button class="btn btn-sm btn-primary" type="button" onclick="saveStrategyConfig()">💾 保存通知设置</button>
+                            <button class="btn btn-sm btn-outline" type="button" onclick="sendNotificationTest()">🔔 发送测试通知</button>
+                        </div>
                     </div>
                 </section>
             </div>

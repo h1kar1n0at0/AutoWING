@@ -32,8 +32,15 @@ from app.engine.flows.base import Flow
 from app.engine.flows.pre_training import PreTrainingFlow
 from app.engine.flows.training import TrainingFlow
 from app.engine.flows.post_training import PostTrainingFlow
+from app.notify.events import NotificationEvent, NotificationLevel
 
 logger = logging.getLogger("autowing.engine.orchestrator")
+
+
+def get_notification_service():
+    from app.notify.runtime import get_notification_service as get_service
+
+    return get_service()
 
 
 class Orchestrator(Task):
@@ -50,6 +57,7 @@ class Orchestrator(Task):
 
         # 错误跟踪
         self._consecutive_unknowns = 0
+        self._unknown_notified = False
 
         # 运行计数与循环间隔
         cfg = config_manager.config
@@ -73,9 +81,20 @@ class Orchestrator(Task):
                 break
             except Exception as e:
                 self.log(f"循环异常: {e}", "error")
+                self._notify(
+                    "loop_exception", NotificationLevel.ERROR,
+                    "AutoWING：循环异常", str(e),
+                    f"loop:{type(e).__name__}:{self._consecutive_unknowns // 5}",
+                )
                 self._consecutive_unknowns += 1
                 if self._consecutive_unknowns > 30:
                     self.log("异常过多，自动停止", "error")
+                    self._notify(
+                        "excessive_errors", NotificationLevel.ERROR,
+                        "AutoWING：异常过多，已停止",
+                        "主循环连续异常超过 30 次，自动停止。",
+                        "excessive-errors",
+                    )
                     break
                 time.sleep(min(2.0, 0.1 * self._consecutive_unknowns))
 
@@ -90,6 +109,12 @@ class Orchestrator(Task):
                 action = self._active_flow.step(self.ctx)
             except Exception as e:
                 self.log(f"Flow 异常: {e}", "error")
+                flow_name = type(self._active_flow).__name__
+                self._notify(
+                    "flow_exception", NotificationLevel.ERROR,
+                    f"AutoWING：{flow_name} 异常", str(e),
+                    f"{flow_name}:{type(e).__name__}",
+                )
                 self._active_flow = None
                 return
 
@@ -131,7 +156,18 @@ class Orchestrator(Task):
             self._consecutive_unknowns += 1
             if self._consecutive_unknowns == 1:
                 self.log(f"未知状态 (第{self._consecutive_unknowns}次)", "warning")
+            if self._consecutive_unknowns >= 10 and not self._unknown_notified:
+                self._unknown_notified = True
+                self._notify(
+                    "unknown_threshold", NotificationLevel.WARNING,
+                    "AutoWING：未知状态持续过久",
+                    "连续 UNKNOWN 状态已超过 10 次。",
+                    "unknown-threshold",
+                )
             time.sleep(0.5)
+
+        if gs != GlobalState.UNKNOWN:
+            self._unknown_notified = False
 
         # 3. 限速
         elapsed = time.perf_counter() - t0
@@ -153,6 +189,11 @@ class Orchestrator(Task):
 
         if isinstance(signal, StopSignal):
             self.log(f"停止信号: {signal.reason}")
+            self._notify(
+                "stop_signal", NotificationLevel.WARNING,
+                "AutoWING：收到停止信号", signal.reason,
+                f"stop:{signal.reason}",
+            )
             self.stop()
             return
 
@@ -185,9 +226,42 @@ class Orchestrator(Task):
         """一次育成运行完成时的处理"""
         self._run_count += 1
         self.log(f"育成完成, 已执行 {self._run_count} 次")
+        self._notify(
+            "training_done", NotificationLevel.INFO,
+            "AutoWING：育成完成",
+            f"已完成第 {self._run_count} 次育成。",
+            f"run:{self._run_count}",
+        )
         if self._run_target > 0 and self._run_count >= self._run_target:
             self.log(f"达到执行次数 {self._run_target}, 停止")
+            self._notify(
+                "run_target_reached", NotificationLevel.WARNING,
+                "AutoWING：达到目标次数，已停止",
+                f"已达到目标次数 {self._run_target}。",
+                f"target:{self._run_target}",
+            )
             self.stop()
+
+    def _notify(
+        self,
+        event_type: str,
+        level: NotificationLevel,
+        title: str,
+        body: str,
+        dedup_key: str,
+        bypass_level_filter: bool = False,
+    ) -> None:
+        try:
+            get_notification_service().publish(NotificationEvent(
+                event_type=event_type,
+                level=level,
+                title=title,
+                body=body[:1000],
+                dedup_key=dedup_key,
+                bypass_level_filter=bypass_level_filter,
+            ))
+        except Exception as exc:
+            logger.debug("通知入队失败: event=%s error=%s", event_type, type(exc).__name__)
 
     # ── 动作执行 ──────────────────────────────
 

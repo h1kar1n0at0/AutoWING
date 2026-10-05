@@ -7,3 +7,4 @@ pyyaml>=6.0
 mss>=9.0
 pillow>=10.0
 pywin32>=306
+apprise>=1.9

@@ -25,6 +25,7 @@ import cv2
 import numpy as np
 
 from app.core.canvas import CanvasDetector
+from app.notify.events import NotificationEvent, NotificationLevel
 
 warnings.filterwarnings("ignore", category=ResourceWarning)
 logger = logging.getLogger("autowing.canvas_session")
@@ -41,6 +42,27 @@ _bg_hwnd = None
 _bg_loop: Optional[asyncio.AbstractEventLoop] = None  # 后台线程的事件循环
 _bg_lock = threading.Lock()
 _bg_ready = threading.Event()
+
+
+def _notify_cdp_disconnect(
+    was_connected: bool,
+    was_requested_to_stop: bool,
+    worker_id: str,
+) -> None:
+    if not was_connected or was_requested_to_stop:
+        return
+    try:
+        from app.notify.runtime import get_notification_service
+
+        get_notification_service().publish(NotificationEvent(
+            event_type="cdp_disconnected",
+            level=NotificationLevel.WARNING,
+            title="AutoWING：CDP 连接断开",
+            body="Canvas 后台连接已意外退出，请检查浏览器和调试端口。",
+            dedup_key=worker_id,
+        ))
+    except Exception as exc:
+        logger.debug("CDP 断线通知失败: %s", type(exc).__name__)
 
 
 def _run_on_bg_loop(coro) -> Optional[any]:
@@ -78,6 +100,7 @@ def _is_bg_loop_alive() -> bool:
 def _bg_worker(hwnd):
     """后台线程: 保持 CDP 连接, 持续截图到 _bg_snapshot"""
     global _bg_browser, _bg_loop, _bg_snapshot, _stop_bg_worker
+    was_connected = False
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -95,6 +118,7 @@ def _bg_worker(hwnd):
     _bg_loop = loop
 
     async def run():
+        nonlocal was_connected
         global _bg_browser, _bg_snapshot, _stop_bg_worker
         port = CanvasDetector._find_cdp_port(hwnd)
         if not port:
@@ -151,6 +175,7 @@ Object.defineProperty(navigator, 'webdriver', {
                         logger.debug(f"注入反检测脚本失败: {e}")
 
                     _bg_browser = (pw, browser, pg)
+                    was_connected = True
                     _bg_ready.set()
                     logger.info("CDP 后台线程就绪")
 
@@ -211,6 +236,11 @@ Object.defineProperty(navigator, 'webdriver', {
     except Exception as e:
         logger.error(f"CDP 后台线程异常退出: {e}")
     finally:
+        _notify_cdp_disconnect(
+            was_connected=was_connected,
+            was_requested_to_stop=_stop_bg_worker,
+            worker_id=str(hwnd),
+        )
         _bg_ready.set()
         _bg_loop = None
         _bg_browser = None

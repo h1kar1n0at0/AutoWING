@@ -53,6 +53,14 @@ class StrategyConfig:
     # ── 其他功能 ──
     auto_continuous_mining: bool = False          # 是否启用自动连续挖矿
 
+    # ── 通知 ──
+    notifications_enabled: bool = False
+    notification_urls: list[str] = field(default_factory=list)
+    notification_min_level: str = "warning"
+    notification_dedup_seconds: float = 60.0
+    notification_rate_limit_seconds: float = 30.0
+    notification_queue_size: int = 100
+
     def to_dict(self) -> dict:
         return asdict(self)
 
