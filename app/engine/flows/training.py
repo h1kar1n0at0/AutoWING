@@ -28,6 +28,13 @@ from app.core import clear_cache
 
 logger = logging.getLogger("autowing.engine.flows.training")
 
+_STOP_SEASON_PAIRS = frozenset({
+    (SeasonState.S1, 1),
+    (SeasonState.S2, 2),
+    (SeasonState.S3, 3),
+    (SeasonState.S4, 4),
+})
+
 class TrainingFlow(Flow):
     """育成主循环 — 基于事件与路标切入的状态机"""
 
@@ -111,7 +118,7 @@ class TrainingFlow(Flow):
             return skip_story_with_multiple_clicks()
 
         # B. 探查标志：是否已经稳定进入 MAIN 界面？
-        if self._detector.is_main_page():  # 对应 match main template
+        if self._detector.is_main_page() and self._detector.detect_season():  # 对应 match main template
             logger.info("【路标】到达 MAIN 界面，切入决策模式")
             self._sub_state = "main_page"
             self._consecutive_unknowns = 0
@@ -241,7 +248,7 @@ class TrainingFlow(Flow):
         in_multi_step = ctx.season_data.get("in_multi_step_decision", False)
 
         # 只有在流程结束且“确实输出了动作”时，才切回剧情跳过模式
-        if action is not None and not in_multi_step or action is None and not in_multi_step:
+        if action is not None and not in_multi_step:
             logger.info("决策动作已下发，切回剧情跳过模式")
             self._enter_event_skip()
             
@@ -286,6 +293,12 @@ class TrainingFlow(Flow):
     def _decision_chain(self, ctx: Context) -> Optional[Action]:
         """季度任务 → 约定 → 体力 → 策略 (输出：视镜/休息/日程)"""
         page = self._detector.detect_page()
+
+        target = config_manager.config.stop_at_season_start
+        if (ctx.season, target) in _STOP_SEASON_PAIRS:
+            logger.info(f"到达目标季度 {ctx.season.name}，停止引擎")
+            ctx.signal = StopSignal(reason=f"执行到第 {target} 季度初，停止")
+            return WaitAction(0.05)
 
         ctx.season_data.pop("forced_action", None)
         week = self._detector.detect_week()

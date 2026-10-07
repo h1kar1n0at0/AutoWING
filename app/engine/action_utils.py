@@ -150,6 +150,10 @@ def click_enter_skill_learning() -> SequenceAction:
             ClickAction(x=1066, y=832, description="进入技能学习页面"),
             WaitAction(seconds=2.35),
             ClickAction(x=1535, y=579, description="缩放"),
+            WaitAction(seconds=0.06),
+            ClickAction(x=1535, y=579, description="缩放"),
+            WaitAction(seconds=0.06),
+            ClickAction(x=1535, y=579, description="缩放"),
         ))
 
 def click_skill_learning() -> SequenceAction:

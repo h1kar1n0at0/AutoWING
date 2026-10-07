@@ -117,6 +117,24 @@ class AuditionFightFlow(Flow):
     def step(self, ctx: Context) -> Optional[Action]:
         # ─── 空闲等待 ──────────────────────────
         if self._step == "idle":
+            # 超时检测：如果等待超过15秒仍未检测到回合开始，则强制重试
+            if not hasattr(self, '_wait_start_time') or self._just_entered_wait_turn:
+                self._wait_start_time = time.time()
+                self._just_entered_wait_turn = False
+            
+            elapsed = time.time() - self._wait_start_time
+            if elapsed > 15:  # 15秒超时
+                logger.warning(f"等待回合超时 ({elapsed:.1f}s)，强制重置")
+                self._wait_start_time = time.time()  # 重置计时器
+                if ctx.can_jump():
+                    ctx._record_jump()
+                    return SequenceAction(actions=(
+                                        refresh_page(),
+                                        WaitAction(seconds=2.5)
+                                    ))
+                else:
+                    logger.warning("跳转限流: 已达到跳转上限，等待中...")
+                    return WaitAction(seconds=1.5)
             if self._detector.detect_turn_start():
                 self._step = "evaluate"
                 self._turn_count += 1
@@ -126,7 +144,7 @@ class AuditionFightFlow(Flow):
 
         # ─── 等待下一回合 ──────────────────────
         if self._step == "wait_turn":
-                    # 超时检测：如果等待超过15秒仍未检测到回合开始，则强制重试
+            # 超时检测：如果等待超过15秒仍未检测到回合开始，则强制重试
             if not hasattr(self, '_wait_start_time') or self._just_entered_wait_turn:
                 self._wait_start_time = time.time()
                 self._just_entered_wait_turn = False

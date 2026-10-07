@@ -82,12 +82,22 @@
                                     <span class="toggle-text">自动处理约定事件</span>
                                 </label>
                             </div>
-                            <div class="setting-item setting-item-full">
+                            <div class="setting-item setting-item">
                                 <label class="setting-label">连续挖矿</label>
                                 <label class="toggle-row">
                                     <input type="checkbox" id="cfgAutoContinuousMining">
                                     <span class="toggle-text">启用自动连续挖矿</span>
                                 </label>
+                            </div>
+                            <div class="setting-item setting-item">
+                                <label class="setting-label">执行到某季度初停止</label>
+                                <select id="cfgStopAtSeasonStart" class="setting-select">
+                                    <option value="0">不启用</option>
+                                    <option value="1">第 1 季度</option>
+                                    <option value="2">第 2 季度</option>
+                                    <option value="3">第 3 季度</option>
+                                    <option value="4">第 4 季度</option>
+                                </select>
                             </div>
                             <div class="setting-item setting-item-full">
                                 <label class="setting-label">窗口标题</label>

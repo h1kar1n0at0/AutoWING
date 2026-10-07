@@ -163,6 +163,7 @@ function getSettingsFromUI() {
         use_mem: $("cfgUseMem").checked,
         handle_agreement: $("cfgHandleAgreement").checked,
         auto_continuous_mining: $("cfgAutoContinuousMining").checked,
+        stop_at_season_start: parseInt($("cfgStopAtSeasonStart").value) || 0,
         browser_path: $("browserPath").value,
         wait_offset: clampNumber($("cfgWaitOffset").value, 0, 10, 0),
         pre_wait_offset: clampNumber($("cfgPreWaitOffset").value, 0, 10, 0),
@@ -187,6 +188,7 @@ function setSettingsToUI(cfg) {
     if (cfg.use_mem !== undefined) $("cfgUseMem").checked = cfg.use_mem;
     if (cfg.handle_agreement !== undefined) $("cfgHandleAgreement").checked = cfg.handle_agreement;
     if (cfg.auto_continuous_mining !== undefined) $("cfgAutoContinuousMining").checked = cfg.auto_continuous_mining;
+    if (cfg.stop_at_season_start !== undefined) $("cfgStopAtSeasonStart").value = cfg.stop_at_season_start;
     if (cfg.browser_path !== undefined) $("browserPath").value = cfg.browser_path;
     if (cfg.wait_offset !== undefined) $("cfgWaitOffset").value = clampNumber(cfg.wait_offset, 0, 10, 0);
     if (cfg.pre_wait_offset !== undefined) $("cfgPreWaitOffset").value = clampNumber(cfg.pre_wait_offset, 0, 10, 0);

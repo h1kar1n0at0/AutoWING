@@ -52,6 +52,7 @@ class StrategyConfig:
 
     # ── 其他功能 ──
     auto_continuous_mining: bool = False          # 是否启用自动连续挖矿
+    stop_at_season_start: int = 0                 # 执行到某季度初 (0=不启用, 1-4=第N季度)
 
     # ── 通知 ──
     notifications_enabled: bool = False

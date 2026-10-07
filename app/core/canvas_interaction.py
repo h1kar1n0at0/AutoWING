@@ -73,8 +73,8 @@ async def _async_click_on_canvas(ref_x, ref_y, button="left", duration=0, page=N
         return None
 
     # 计算基准坐标 (REF_W x REF_H) 映射到当前 Canvas CSS 渲染尺寸的缩放比
-    sx = rect["width"] / REF_W
-    sy = rect["height"] / REF_H
+    s = rect["width"] / REF_W
+    sx = sy = s
 
     # 计算目标点在 Page Viewport 中的绝对坐标
     px = rect["left"] + ref_x * sx
@@ -102,8 +102,8 @@ async def _async_preview_coords(ref_x, ref_y, page=None):
     if not rect:
         return None
 
-    sx = rect["width"] / REF_W
-    sy = rect["height"] / REF_H
+    s = rect["width"] / REF_W
+    sx = sy = s
     px = rect["left"] + ref_x * sx
     py = rect["top"] + ref_y * sy
 
@@ -127,8 +127,8 @@ async def _async_execute_qte_sequence(ref_x: float, ref_y: float, total_clicks: 
     if not rect:
         return
 
-    sx = rect["width"] / REF_W
-    sy = rect["height"] / REF_H
+    s = rect["width"] / REF_W
+    sx = sy = s
 
     # 2. 使用 time.perf_counter() 获得最高精度的单调时钟
     start_time = time.perf_counter()
@@ -181,8 +181,8 @@ async def _async_scroll_on_canvas(
     if not rect:
         return None
 
-    sx = rect["width"] / REF_W
-    sy = rect["height"] / REF_H
+    s = rect["width"] / REF_W
+    sx = sy = s
 
     # 计算目标点在 Page Viewport 中的绝对坐标
     px = rect["left"] + ref_x * sx
@@ -251,8 +251,8 @@ async def _async_continuous_scroll(
     if not rect:
         return False
 
-    sx = rect["width"] / REF_W
-    sy = rect["height"] / REF_H
+    s = rect["width"] / REF_W
+    sx = sy = s
     base_px = rect["left"] + ref_x * sx
     base_py = rect["top"] + ref_y * sy
 

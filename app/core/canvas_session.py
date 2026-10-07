@@ -187,7 +187,14 @@ Object.defineProperty(navigator, 'webdriver', {
                                 pg.evaluate("""() => {
                                     const c = document.querySelector('canvas');
                                     if (!c) return null;
-                                    return c.toDataURL('image/jpeg', 0.92);
+                                    const crop = document.createElement('canvas');
+                                    crop.width = Math.min(c.width, 1136);
+                                    crop.height = Math.min(c.height, 640);
+                                    crop.getContext('2d').drawImage(
+                                        c, 0, 0, crop.width, crop.height,
+                                        0, 0, crop.width, crop.height
+                                    );
+                                    return crop.toDataURL('image/jpeg', 0.92);
                                 }"""),
                                 timeout=_SCREENSHOT_TIMEOUT,
                             )
