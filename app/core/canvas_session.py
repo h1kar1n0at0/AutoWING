@@ -56,7 +56,7 @@ def _notify_cdp_disconnect(
 
         get_notification_service().publish(NotificationEvent(
             event_type="cdp_disconnected",
-            level=NotificationLevel.WARNING,
+            level=NotificationLevel.INFO,
             title="AutoWING：CDP 连接断开",
             body="Canvas 后台连接已意外退出，请检查浏览器和调试端口。",
             dedup_key=worker_id,

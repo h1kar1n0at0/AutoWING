@@ -168,6 +168,7 @@ function getSettingsFromUI() {
         wait_offset: clampNumber($("cfgWaitOffset").value, 0, 10, 0),
         pre_wait_offset: clampNumber($("cfgPreWaitOffset").value, 0, 10, 0),
         qte_interval_offset: clampNumber($("cfgQteIntervalOffset").value, -1, 1, 0),
+        skip_story_interval_offset: clampNumber($("cfgSkipStoryIntervalOffset").value, 0, 1, 0),
         loop_interval: clampNumber($("cfgLoopInterval").value, 0.05, 1, 0.05),
         notifications_enabled: $("cfgNotificationsEnabled").checked,
         notification_urls: $("notificationUrls").value.split(/\r?\n/).map((url) => url.trim()).filter(Boolean),
@@ -193,6 +194,7 @@ function setSettingsToUI(cfg) {
     if (cfg.wait_offset !== undefined) $("cfgWaitOffset").value = clampNumber(cfg.wait_offset, 0, 10, 0);
     if (cfg.pre_wait_offset !== undefined) $("cfgPreWaitOffset").value = clampNumber(cfg.pre_wait_offset, 0, 10, 0);
     if (cfg.qte_interval_offset !== undefined) $("cfgQteIntervalOffset").value = clampNumber(cfg.qte_interval_offset, -1, 1, 0);
+    if (cfg.skip_story_interval_offset !== undefined) $("cfgSkipStoryIntervalOffset").value = clampNumber(cfg.skip_story_interval_offset, 0, 1, 0); 
     if (cfg.loop_interval !== undefined) $("cfgLoopInterval").value = clampNumber(cfg.loop_interval, 0.05, 1, 0.05);
     if (cfg.notifications_enabled !== undefined) $("cfgNotificationsEnabled").checked = cfg.notifications_enabled;
     if (cfg.notification_urls !== undefined) $("notificationUrls").value = (cfg.notification_urls || []).join("\n");
@@ -254,7 +256,7 @@ async function loadStrategyConfig() {
         if (data.success && data.config) {
             const cfg = data.config;
             setSettingsToUI(cfg);
-            _learnOrder = cfg.skill_learn_order || [];
+            _learnOrder =  normalizeLearnOrder(cfg.skill_learn_order) || [];
             _skillPriority = cfg.skill_priority || [];
             renderLearnOrder();
             renderSkillPriority();
@@ -297,9 +299,19 @@ function renderLearnOrder() {
         `<div style="padding:2px 0;font-size:11px">
             <strong>#${i + 1}</strong> (${item.x}, ${item.y})
             ${item.label || ''}
+            ${item.is_mb ? '<span style="color:#e53935;font-weight:bold">[MB]</span>' : ''}
             <span style="color:var(--text-dim)">${item.wait || 0.3}s</span>
         </div>`
     ).join("");
+}
+
+function normalizeLearnOrder(list) {
+    return (list || []).map(p => ({
+        x: p.x, y: p.y,
+        wait: p.wait !== undefined ? p.wait : 0.3,
+        label: p.label || "",
+        is_mb: p.is_mb === true,
+    }));
 }
 
 // ── 录制状态 ──
@@ -321,6 +333,7 @@ function recordLearnOrder() {
     addLog("info", "🔗 点击事件已绑定到截图");
 
     img.src = "/api/capture-canvas?" + Date.now(); // 加时间戳防缓存
+    $("recordMbMode").checked = false;
     $("recordCount").textContent = "0";
     $("recordedPoints").innerHTML = '<span style="color:var(--text-dim)">(还没有记录点)</span>';
     $("recordMarkers").innerHTML = "";
@@ -353,28 +366,32 @@ function handleRecordClick(e) {
     addRecordedPoint(refX, refY);
 }
 
-function addRecordedPoint(x, y, wait) {
-    wait = wait || parseFloat($("manualRecWait").value) || 0.3;
-    const idx = _recordingPoints.length;
-    _recordingPoints.push({ x, y, wait, label: "" });
-    renderRecordedPoints();
-
-    // 在截图上画标记
+function renderRecordMarkers() {
     const markers = $("recordMarkers");
-    const img = $("recordCanvasImg");
-    
-    // ✅ 1600x902 坐标 → 实际图片坐标 → 百分比
-    // 实际图片尺寸 = img.naturalWidth x img.naturalHeight (如 1136x640)
-    const pctX = (x / 1600) * (img.naturalWidth / 1600) * 100;  // 简化为 (x / 1600) * 100
-    const pctY = (y / 902) * (img.naturalHeight / 902) * 100;   // 简化为 (y / 902) * 100
-    
-    // 实际上因为比例相同 (1600:902 ≈ 1136:640)，直接用百分比即可
-    const dot = document.createElement("div");
-    dot.className = "record-marker";
-    dot.style.left = (x / 1600 * 100) + "%";
-    dot.style.top = (y / 902 * 100) + "%";
-    dot.textContent = idx + 1;
-    markers.appendChild(dot);
+    markers.innerHTML = "";
+    _recordingPoints.forEach((p, idx) => {
+        const dot = document.createElement("div");
+        dot.className = "record-marker" + (p.is_mb ? " is-mb" : "");
+        dot.style.left = (p.x / 1600 * 100) + "%";
+        dot.style.top = (p.y / 902 * 100) + "%";
+        dot.textContent = idx + 1;
+        markers.appendChild(dot);
+    });
+}
+
+function addRecordedPoint(x, y, wait, isMb) {
+    wait = wait || parseFloat($("manualRecWait").value) || 0.3;
+    // 未显式传入时，取全局 MB 模式
+    if (isMb === undefined) {
+        isMb = $("recordMbMode") ? $("recordMbMode").checked : false;
+    }
+    isMb = !!isMb;
+
+    const idx = _recordingPoints.length;
+    _recordingPoints.push({ x, y, wait, label: "", is_mb: isMb });   // ← 只 push 一次
+
+    renderRecordedPoints();
+    renderRecordMarkers();
 }
 
 function renderRecordedPoints() {
@@ -385,27 +402,34 @@ function renderRecordedPoints() {
         return;
     }
     el.innerHTML = _recordingPoints.map((p, i) =>
-        `<div class="point-item">
+        `<div class="point-item${p.is_mb ? ' is-mb' : ''}">
             <span class="point-num">#${i + 1}</span>
             <span>(${p.x}, ${p.y})</span>
             <span style="color:var(--text-dim)">${p.wait}s</span>
+            <label class="toggle-row" style="display:inline-flex;margin-left:6px">
+                <input type="checkbox" ${p.is_mb ? 'checked' : ''}
+                       onchange="toggleRecordedMb(${i}, this.checked)">
+                <span class="toggle-text">MB</span>
+            </label>
             <span class="point-del" onclick="removeRecordedPoint(${i})">✕</span>
         </div>`
     ).join("");
 }
 
+function toggleRecordedMb(i, val) {
+    if (!_recordingPoints[i]) return;
+    _recordingPoints[i].is_mb = !!val;
+    // 只改当前行 class，避免 checkbox 失焦
+    const row = $("recordedPoints").children[i];
+    if (row) row.classList.toggle("is-mb", !!val);
+    renderRecordMarkers();
+}
+
+
+
 function removeRecordedPoint(i) {
     _recordingPoints.splice(i, 1);
-    $("recordMarkers").innerHTML = "";
-    _recordingPoints.forEach((p, idx) => {
-        const markers = $("recordMarkers");
-        const dot = document.createElement("div");
-        dot.className = "record-marker";
-        dot.style.left = (p.x / 1600 * 100) + "%";
-        dot.style.top = (p.y / 902 * 100) + "%";
-        dot.textContent = idx + 1;
-        markers.appendChild(dot);
-    });
+    renderRecordMarkers();
     renderRecordedPoints();
 }
 
@@ -471,7 +495,7 @@ async function importLearnOrder() {
         const r = await fetch("/api/learn-order/import", { method: "POST" });
         const d = await r.json();
         if (d.success && Array.isArray(d.data)) {
-            _learnOrder = d.data;
+            _learnOrder = normalizeLearnOrder(d.data);
             renderLearnOrder();
             await saveSkillPriority();  // 导入后持久化到策略配置
             addLog("info", `📥 已导入并保存 ${_learnOrder.length} 个点`);

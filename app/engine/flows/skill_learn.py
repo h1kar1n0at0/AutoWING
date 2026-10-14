@@ -9,9 +9,9 @@ from typing import Optional
 import time
 
 from app.engine.action import Action, WaitAction, SequenceAction
-from app.engine.action_utils import click_xy, click_skill_learning, click_back, click_enter_skill_learning
+from app.engine.action_utils import click_xy, click_skill_learning, click_back, click_enter_skill_learning, click_skill_learning_mb
 from app.engine.config_models import config_manager
-from app.engine.flows.base import Flow
+from app.engine.flows.base import Flow, StopSignal
 from app.engine.context import Context
 from app.engine.detector import TemplateDetector,PageState
 
@@ -30,9 +30,29 @@ class SkillLearnFlow(Flow):
         self._max_retry = 3
         self._state_wait_start = 0.0
         self._state_wait_timeout = 10.0  # 10 秒超时
+        self._guards: dict[str, tuple] = {}   # key -> (count, first_time)
         logger.info("🔧 SkillLearnFlow 初始化完成")
 
     # ── 内部 ──────────────────────────────────
+
+    def guard(self, key: str, max_count: int = 3, window: float = 60.0) -> bool:
+        """
+        返回 True = 允许继续；False = 超限，应停止
+        window 内累计超过 max_count 次即超限
+        """
+        now = time.time()
+        count, first = self._guards.get(key, (0, now))
+        if now - first > window:
+            count, first = 0, now
+        count += 1
+        self._guards[key] = (count, first)
+        return count <= max_count
+
+    def clear_guard(self, key: str = None):
+        if key:
+            self._guards.pop(key, None)
+        else:
+            self._guards.clear()
 
     def _next_unlearned(self) -> Optional[int]:
         order = config_manager.config.skill_learn_order
@@ -58,6 +78,8 @@ class SkillLearnFlow(Flow):
         self._step = "wait_idle"
         self._idx = 0
         self._retry = 0
+        self._guards.clear()
+        self._state_wait_start = 0.0
         self._learned = set()
 
     # ── 主入口 ────────────────────────────────
@@ -94,25 +116,22 @@ class SkillLearnFlow(Flow):
                 if self._state_wait_start == 0.0:
                     self._state_wait_start = now
                 elif now - self._state_wait_start >= self._state_wait_timeout:
-                    logger.warning(f" 等待状态超时 ({self._state_wait_timeout}s)，检查页面状态...")
-                    # 检查是否还在技能学习页面
-                    page = self._detector.detect_page()
-                    if page != PageState.SKILL_UNLOCK:
-                        logger.info(f"   当前页面不是 SKILL_UNLOCK ({page})，尝试重新进入 SKILL_UNLOCK 页面")
-                        # 这里你可以自定义返回逻辑
-                        return SequenceAction(actions=(
-                                    click_back(),
-                                    WaitAction(seconds=0.3),
-                                    click_enter_skill_learning(),
-                                ))
-                    else:
-                        logger.info("   仍在 SKILL_UNLOCK 页面，继续等待...")
-                        # 重置超时计时器，继续等待
-                        self._state_wait_start = now
-                        return click_xy(759, 439)
+                    if not self.guard("skill_learn_recover", max_count=3, window=60):
+                        logger.error("技能学习超时，退出")
+                        ctx.season_data["in_multi_step_decision"] = False
+                        ctx.signal = StopSignal("技能学习超时")
+                        return WaitAction(seconds=0.05)
+                    logger.warning(f" 等待状态超时 ({self._state_wait_timeout}s)， 尝试重新进入 SKILL_UNLOCK 页面")
+                    self._state_wait_start = 0.0
+                    return SequenceAction(actions=(
+                                                            click_back(),
+                                                            WaitAction(seconds=0.3),
+                                                            click_enter_skill_learning(),
+                    ))
                 return click_xy(759,439)
 
             logger.info("   状态是 idle，准备学习下一个技能")
+            self.clear_guard("skill_learn_recover")
             next_idx = self._next_unlearned()
             if next_idx is None:
                 logger.info("   没有未学习的技能了")
@@ -121,6 +140,7 @@ class SkillLearnFlow(Flow):
 
             self._step = "click_position"
             self._retry = 0
+            self._state_wait_start = 0.0
             logger.info(f" 准备学习技能 #{next_idx}")
             return WaitAction(seconds=0.3)
 
@@ -183,12 +203,16 @@ class SkillLearnFlow(Flow):
 
         # CONFIRM: 确认学习
         if self._step == "confirm":
-            logger.info(f" confirm: 确认学习技能 #{self._idx}")
+            entry = order[self._idx] if self._idx < len(order) else {}
+            is_mb = entry.get("is_mb", False)      # 默认 False
+            logger.info(f" confirm: 确认学习技能 #{self._idx} is_mb={is_mb} entry={entry}")
             self._learned.add(self._idx)
             self._idx += 1
             self._step = "wait_idle"
             logger.info(f"   已学习: {self._learned}, 下一个索引: {self._idx}")
             logger.info("确认学习完成")
+            if is_mb:
+                return click_skill_learning_mb()
             return click_skill_learning()
 
         logger.warning(f" 未知的 _step: {self._step}，重置到 wait_idle")

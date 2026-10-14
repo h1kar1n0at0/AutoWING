@@ -127,6 +127,8 @@ class Templates:
         "promise_schedule":"assets/bonuses/promise_schedule.png",
     }
 
+    FANS_DIGITS = {str(i): f"assets/digits/{i}.png" for i in range(0, 10)}
+
     # ── 技能图标 (assets/skills/) ────────────
     SKILLS = {
     }
@@ -190,3 +192,7 @@ class Templates:
     @classmethod
     def week_digit(cls, digit: int) -> str:
         return cls.WEEK_DIGITS[str(digit)]
+
+    @classmethod
+    def fans_digit(cls, key: str) -> str:
+        return cls.FANS_DIGITS[str(key)]

@@ -171,6 +171,21 @@ def click_skill_learning() -> SequenceAction:
             WaitAction(seconds=0.5),
         ))
 
+def click_skill_learning_mb() -> SequenceAction:
+    """技能学习"""
+    return SequenceAction(actions=(
+            ClickAction(x=1449, y=580, description="确认"),
+            WaitAction(seconds=0.05),
+            ClickAction(x=875, y=723, description="二次确认"),
+            WaitAction(seconds=0.05),
+            ClickAction(x=875, y=651, description="二次确认"),
+            WaitAction(seconds=0.05),
+            ClickAction(x=1092, y=166, description="选择"),
+            WaitAction(seconds=0.05),
+            ClickAction(x=930, y=801, description="三次确认"),
+            WaitAction(seconds=0.5),
+        ))
+
 
 def click_back() -> ClickAction:
     """进入日程页面"""

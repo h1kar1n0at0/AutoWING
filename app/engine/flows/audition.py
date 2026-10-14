@@ -11,7 +11,7 @@ import time
 from app.engine.action import Action, WaitAction, SequenceAction
 from app.engine.action_utils import click_xy, click_xy_qte, refresh_page, long_click_xy
 from app.engine.config_models import config_manager
-from app.engine.flows.base import Flow
+from app.engine.flows.base import Flow, StopSignal
 from app.engine.context import Context
 from app.engine.detector import TemplateDetector
 from app.engine.state import SeasonState
@@ -113,6 +113,27 @@ class AuditionFightFlow(Flow):
         self._buff = 0               # 当前 BUFF 数量
         self._turn_count = 0         # 回合计数器
         self._just_entered_wait_turn = True  # 标记是否刚进入 wait_turn 状态
+        self._guards: dict[str, tuple] = {}   # key -> (count, first_time)
+
+    def guard(self, key: str, max_count: int = 3, window: float = 60.0) -> bool:
+        """
+        返回 True = 允许继续；False = 超限，应停止
+        window 内累计超过 max_count 次即超限
+        """
+        now = time.time()
+        count, first = self._guards.get(key, (0, now))
+        if now - first > window:
+            count, first = 0, now
+        count += 1
+        self._guards[key] = (count, first)
+        return count <= max_count
+
+    def clear_guard(self, key: str = None):
+        if key:
+            self._guards.pop(key, None)
+        else:
+            self._guards.clear()
+
 
     def step(self, ctx: Context) -> Optional[Action]:
         # ─── 空闲等待 ──────────────────────────
@@ -123,7 +144,11 @@ class AuditionFightFlow(Flow):
                 self._just_entered_wait_turn = False
             
             elapsed = time.time() - self._wait_start_time
-            if elapsed > 15:  # 15秒超时
+            if elapsed > 25:  # 15秒超时
+                if not self.guard("audition_recover", max_count=3, window=60):
+                        logger.error("视镜流程超时，退出")
+                        ctx.signal = StopSignal("视镜流程超时")
+                        return WaitAction(seconds=0.05)
                 logger.warning(f"等待回合超时 ({elapsed:.1f}s)，强制重置")
                 self._wait_start_time = time.time()  # 重置计时器
                 if ctx.can_jump():
@@ -138,9 +163,10 @@ class AuditionFightFlow(Flow):
             if self._detector.detect_turn_start():
                 self._step = "evaluate"
                 self._turn_count += 1
+                self.clear_guard("audition_recover")
                 logger.info(f"第 {self._turn_count} 回合开始")
-                return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.3)))
-            return click_xy(x=818, y=589, desc="跳过剧情")
+                return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
+            return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
 
         # ─── 等待下一回合 ──────────────────────
         if self._step == "wait_turn":
@@ -150,7 +176,11 @@ class AuditionFightFlow(Flow):
                 self._just_entered_wait_turn = False
             
             elapsed = time.time() - self._wait_start_time
-            if elapsed > 15:  # 15秒超时
+            if elapsed > 25:  # 15秒超时
+                if not self.guard("audition_recover", max_count=3, window=60):
+                    logger.error("视镜流程超时，退出")
+                    ctx.signal = StopSignal("视镜流程超时")
+                    return WaitAction(seconds=0.05)
                 logger.warning(f"等待回合超时 ({elapsed:.1f}s)，强制重置")
                 self._wait_start_time = time.time()  # 重置计时器
                 if ctx.can_jump():
@@ -170,9 +200,10 @@ class AuditionFightFlow(Flow):
             if self._detector.detect_turn_start():
                 self._step = "evaluate"
                 self._turn_count += 1
+                self.clear_guard("audition_recover")
                 logger.info(f"第 {self._turn_count} 回合开始")
                 self._just_entered_wait_turn = True  # 重置标记
-                return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.15),click_xy(818, 589),WaitAction(seconds=0.33)))
+                return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
             elif self._detector._is_post_audition():
                 logger.info("视镜战斗结束")
                 ctx.season_data["in_multi_step_decision"] = False
@@ -211,7 +242,7 @@ class AuditionFightFlow(Flow):
             logger.info(f"✨ BUFF: {self._buff} | 技能: {skill_name} @ ({self._skill_hit.x:.0f}, {self._skill_hit.y:.0f})")
             
             self._step = "click_skill"
-            return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
+            return SequenceAction(actions=(click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05)))
 
         # ─── 点击技能 ──────────────────────────
         if self._step == "click_skill":

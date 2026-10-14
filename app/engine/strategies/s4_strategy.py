@@ -54,6 +54,22 @@ def _get_main_stat_action(ctx):
     audition_count = ctx.season_data.get("audition_count", 0)
     if strategy == "230":
         logger.info("策略选择为 230，进行视镜连打")
+        if audition_count == 1:
+            leading_digit_result = _detector.detect_leading_digit(digits="45")
+            if not leading_digit_result:
+                logger.warning("未识别出粉丝数")
+            if leading_digit_result:
+                logger.info(f"当前粉丝数首位：{leading_digit_result[0]}")
+                if leading_digit_result[0] == 4:
+                    audition_count = 0
+                    ctx.season_data["audition_count"] = audition_count
+        elif audition_count == 5:
+                    leading_digit_result = _detector.detect_leading_digit(digits="19")
+                    if leading_digit_result:
+                        logger.info(f"当前粉丝数首位：{leading_digit_result[0]}")
+                        if leading_digit_result[0] != 1:
+                            audition_count = 4
+                            ctx.season_data["audition_count"] = audition_count
         if audition_count == 0:
             logger.info("进行100000粉丝视镜")
             
@@ -107,6 +123,20 @@ def _get_main_stat_action(ctx):
 
     if strategy == "140":
         logger.info("策略选择为 140，进行视镜连打")
+        if audition_count == 4:
+            leading_digit_result = _detector.detect_leading_digit(digits="45")
+            if leading_digit_result:
+                logger.info(f"当前粉丝数首位：{leading_digit_result[0]}")
+                if leading_digit_result[0] == 4:
+                    audition_count = 3
+                    ctx.season_data["audition_count"] = audition_count
+        elif audition_count == 7:
+                    leading_digit_result = _detector.detect_leading_digit(digits="45")
+                    if leading_digit_result:
+                        logger.info(f"当前粉丝数首位：{leading_digit_result[0]}")
+                        if leading_digit_result[0] != 1:
+                            audition_count = 6
+                            ctx.season_data["audition_count"] = audition_count
         if audition_count < 4:
             logger.info("进行100000粉丝视镜")
             

@@ -139,6 +139,17 @@ class TrainingFlow(Flow):
                 logger.info("等待视镜前剧情选项出现")
                 return skip_story_with_multiple_clicks()
 
+        # D. 探查标志：是否季度任务失败到达结算页面
+        if self._detector.detect_post_training():
+                    logger.warning("【路标】季度任务失败，到达结算界面，结算育成")
+                    self._sub_state = "main_page"
+                    self._consecutive_unknowns = 0
+                    ctx.signal = SwitchFlowSignal(
+                                        target="idle",
+                                        kwargs={"training_done": True},
+                                    )
+                    return SequenceAction(actions=(click_end_training(), WaitAction(seconds=0.5), go_to_produce_ready()))
+
         if self._detector._is_in_audition():
             logger.info("【路标】检测到视镜战斗中，切入视镜战斗 Flow")
             self._audition_fight = AuditionFightFlow()
@@ -161,8 +172,10 @@ class TrainingFlow(Flow):
             ctx.signal = StopSignal(reason="育成流程卡死超时 (2 min unknowns)")
             return None  # 退出
 
+        internal = config_manager.config.skip_story_interval_offset
         # E. 常态执行：高速连续点击 Skip
-        return skip_story_with_multiple_clicks()
+        return SequenceAction(actions=(skip_story_with_multiple_clicks(),
+                                       WaitAction(internal)))
 
 
     def _step_event_skip_final(self, ctx: Context) -> Optional[Action]:

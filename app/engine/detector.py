@@ -13,7 +13,7 @@ import time
 
 from app.engine.state import GlobalState, SeasonState, PageState
 from app.engine.templates import Templates
-from app.core import Hit, find, REF_W, clear_cache
+from app.core import Hit, find, REF_W, clear_cache, find_all
 
 logger = logging.getLogger("autowing.engine.detector")
 
@@ -86,6 +86,7 @@ class TemplateDetector(GameStateDetector):
     SUPPORT_VISUAL_ROI = (762, 718, 196, 52)     # visual
     SUPPORT_RADIO_ROI = (971, 718, 189, 50)      # radio
     SUPPORT_PHOTO_ROI = (1382, 718, 192, 48)     # photo
+    LEADING_DIGIT_ROI = (1330, 490, 47, 35)      # 粉丝数前三位所在roi
 
     # ── 技能学习 ──────────────────────────────
     SKILL_LEARN_ROI = (1306, 755, 304, 158)      # 学习按钮区域
@@ -434,6 +435,50 @@ class TemplateDetector(GameStateDetector):
         """检测日程约定标记 (模板匹配)，使用 CONF_MED"""
         region = region or self.SCHEDULE_PROMISE_ROI
         return find(Templates.bonus("promise_schedule"), conf=CONF_MED, region=region)
+
+    # ═══════════════════════════════════════════
+    # 粉丝数检测
+    # ═══════════════════════════════════════════
+
+    def detect_leading_digit(
+        self,
+        min_distance: int = 4,
+        digits: str = "0123456789",
+    ) -> Optional[tuple[int, "Hit"]]:
+        """在 region 内查找首位数字
+
+        用 FANS_DIGITS 模板对 region 做多数字查找, 按 x 坐标取最左命中。
+
+        Args:
+            region: (x, y, w, h) 1600×902 参考系
+            conf: 匹配置信度阈值
+            min_distance: find_all 去重的最小间距 (参考系像素)
+            digits: 限定搜索的字符集, 默认 0-9
+
+        Returns:
+            (数字值, Hit) — Hit.x/y 为该数字中心的参考系坐标
+            None — 未找到任何数字
+        """
+        candidates: list[tuple[float, int, "Hit"]] = []
+
+        for ch in digits:
+            template = Templates.fans_digit(ch)
+            hits = find_all(
+                template,
+                conf=0.90,
+                region=self.LEADING_DIGIT_ROI,
+                min_distance=min_distance,
+            )
+            for h in hits:
+                candidates.append((h.x, int(ch), h))
+
+        if not candidates:
+            return None
+
+        # 按 x 升序取最左, x 相同则取 conf 高的
+        candidates.sort(key=lambda t: (t[0], -t[2].conf))
+        _, value, hit = candidates[0]
+        return value, hit
 
     # ═══════════════════════════════════════════
     # 色彩检测 — 约定 / 体力 (基于 canvas_vision)
