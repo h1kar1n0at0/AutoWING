@@ -47,8 +47,15 @@ class Context:
     # ═══════════════════════════════════════════
     # 4. 跳转限流配置
     # ═══════════════════════════════════════════
-    _JUMP_WINDOW: float = 33.5  # 窗口期 33.5 秒
     _JUMP_MAX_COUNT: int = 2    # 窗口期内最大跳转次数
+
+    def __post_init__(self):
+        raw = self.config.audition_jump_interval
+        try:
+            raw = float(raw)
+        except (TypeError, ValueError):
+            raw = 33.5
+        self._JUMP_WINDOW = max(30.0, min(40.0, raw))
 
     # ═══════════════════════════════════════════
     # 5. 状态转换与自动化缓存清理
@@ -84,6 +91,15 @@ class Context:
     def reload_config(self) -> None:
         """用户在 UI/Web 修改配置后，热重载配置缓存"""
         self.config = config_manager.config
+        self._sync_jump_window()
+
+    def _sync_jump_window(self) -> None:
+        raw = self.config.jump_window_seconds
+        try:
+            raw = float(raw)
+        except (TypeError, ValueError):
+            raw = 33.5
+        self._JUMP_WINDOW = max(30.0, min(40.0, raw))
 
     # ═══════════════════════════════════════════
     # 6. 跳转限流方法

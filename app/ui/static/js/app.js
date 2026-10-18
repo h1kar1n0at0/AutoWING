@@ -170,6 +170,7 @@ function getSettingsFromUI() {
         qte_interval_offset: clampNumber($("cfgQteIntervalOffset").value, -1, 1, 0),
         skip_story_interval_offset: clampNumber($("cfgSkipStoryIntervalOffset").value, 0, 1, 0),
         loop_interval: clampNumber($("cfgLoopInterval").value, 0.05, 1, 0.05),
+        audition_jump_interval: clampNumber($("cfgAuditionJumpInterval").value, 30, 40, 32),
         notifications_enabled: $("cfgNotificationsEnabled").checked,
         notification_urls: $("notificationUrls").value.split(/\r?\n/).map((url) => url.trim()).filter(Boolean),
         notification_min_level: $("cfgNotificationMinLevel").value,
@@ -196,6 +197,7 @@ function setSettingsToUI(cfg) {
     if (cfg.qte_interval_offset !== undefined) $("cfgQteIntervalOffset").value = clampNumber(cfg.qte_interval_offset, -1, 1, 0);
     if (cfg.skip_story_interval_offset !== undefined) $("cfgSkipStoryIntervalOffset").value = clampNumber(cfg.skip_story_interval_offset, 0, 1, 0); 
     if (cfg.loop_interval !== undefined) $("cfgLoopInterval").value = clampNumber(cfg.loop_interval, 0.05, 1, 0.05);
+    if (cfg.audition_jump_interval !== undefined) $("cfgAuditionJumpInterval").value = clampNumber(cfg.audition_jump_interval, 30, 40, 32);
     if (cfg.notifications_enabled !== undefined) $("cfgNotificationsEnabled").checked = cfg.notifications_enabled;
     if (cfg.notification_urls !== undefined) $("notificationUrls").value = (cfg.notification_urls || []).join("\n");
     if (cfg.notification_min_level) $("cfgNotificationMinLevel").value = cfg.notification_min_level;

@@ -115,7 +115,7 @@ class AuditionFightFlow(Flow):
         self._just_entered_wait_turn = True  # 标记是否刚进入 wait_turn 状态
         self._guards: dict[str, tuple] = {}   # key -> (count, first_time)
 
-    def guard(self, key: str, max_count: int = 3, window: float = 60.0) -> bool:
+    def guard(self, key: str, max_count: int = 3, window: float = 100) -> bool:
         """
         返回 True = 允许继续；False = 超限，应停止
         window 内累计超过 max_count 次即超限
@@ -165,8 +165,8 @@ class AuditionFightFlow(Flow):
                 self._turn_count += 1
                 self.clear_guard("audition_recover")
                 logger.info(f"第 {self._turn_count} 回合开始")
-                return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
-            return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
+                return SequenceAction(actions=(click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05)))
+            return SequenceAction(actions=(click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05)))
 
         # ─── 等待下一回合 ──────────────────────
         if self._step == "wait_turn":
@@ -203,13 +203,13 @@ class AuditionFightFlow(Flow):
                 self.clear_guard("audition_recover")
                 logger.info(f"第 {self._turn_count} 回合开始")
                 self._just_entered_wait_turn = True  # 重置标记
-                return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
+                return SequenceAction(actions=(click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05)))
             elif self._detector._is_post_audition():
                 logger.info("视镜战斗结束")
                 ctx.season_data["in_multi_step_decision"] = False
                 return None
             
-            return SequenceAction(actions=(click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05),click_xy(818, 589),WaitAction(seconds=0.05)))
+            return SequenceAction(actions=(click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05),click_xy(818, 444),WaitAction(seconds=0.05)))
         
         # ─── 评估并决策 ──────────────────────
         if self._step == "evaluate":

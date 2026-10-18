@@ -64,7 +64,7 @@ def _get_main_stat_action(ctx):
                     audition_count = 0
                     ctx.season_data["audition_count"] = audition_count
         elif audition_count == 5:
-                    leading_digit_result = _detector.detect_leading_digit(digits="19")
+                    leading_digit_result = _detector.detect_leading_digit(digits="123456789")
                     if leading_digit_result:
                         logger.info(f"当前粉丝数首位：{leading_digit_result[0]}")
                         if leading_digit_result[0] != 1:

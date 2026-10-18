@@ -39,6 +39,7 @@ class StrategyConfig:
     qte_interval_offset: float = 0.0     # QTE间隔时长偏移量 (秒, -1 到 1)
     loop_interval: float = 0.05          # 循环间隔 (秒, 0.05-1)
     skip_story_interval_offset: float = 0.0   # 跳过剧情间隔时间偏移量 (秒, 0-1)
+    audition_jump_interval: float = 32.0   # 视镜跳刀间隔 (秒, 30-40)
 
     # ── 技能学习顺序 ──
     # 由用户录制一系列点击位置，位置基于 1600×902 参考坐标

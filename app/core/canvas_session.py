@@ -166,10 +166,10 @@ def _bg_worker(hwnd):
 
                     # 反检测: 覆盖 navigator.webdriver
                     try:
-                        await pg.add_init_script("""\
-Object.defineProperty(navigator, 'webdriver', {
-    get: () => undefined,
-});""")
+                        # await pg.add_init_script("""\
+                        #Object.defineProperty(navigator, 'webdriver', {
+                        #    get: () => undefined,
+                        #});""")
                         logger.debug("已注入 navigator.webdriver 反检测脚本")
                     except Exception as e:
                         logger.debug(f"注入反检测脚本失败: {e}")

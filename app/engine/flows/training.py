@@ -50,7 +50,8 @@ class TrainingFlow(Flow):
         self._last_detail_tick = 0
         self._consecutive_unknowns = 0
         self._event_skip_entered_at: float = time.monotonic()
-        self._event_skip_min_duration: float = 0.5  # 秒
+        self._event_skip_min_duration: float = 0.8  # 秒
+        self._tick_count = 0
 
         # 约定标记
         self._has_active_promise = False
@@ -77,6 +78,15 @@ class TrainingFlow(Flow):
         """
 
         clear_cache()
+
+            # ── 周期性错误检测：每 5 tick 执行一次 ──
+        self._tick_count += 1
+        if self._tick_count % 5 == 0:
+            error_action = self._check_and_handle_error(ctx)
+            if error_action:
+                logger.warning("周期性检测到界面异常/报错弹窗，执行恢复动作")
+                return error_action
+            
         # 1. 常态：剧情跳过模式
         if self._sub_state == "event_skip":
             return self._step_event_skip(ctx)
@@ -448,7 +458,19 @@ class TrainingFlow(Flow):
         # 示例：检测是否有“网络重连”、“确定/关闭”等异常弹窗按钮
         error_hit = self._detector.detect_error_dialog()
         if error_hit:
-            return refresh_page()
+            if self._sub_state == self._audition_fight:
+                if ctx.can_jump():
+                    ctx._record_jump()
+                    return SequenceAction(actions=(
+                                                    refresh_page(),
+                                                    WaitAction(seconds=2.5)
+                                                ))
+                else:
+                    WaitAction(0.05)
+            return SequenceAction(actions=(
+                                            refresh_page(),
+                                            WaitAction(seconds=2.5)
+                                        ))
         return None
 
     def _enter_event_skip(self) -> None:

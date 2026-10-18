@@ -304,6 +304,22 @@ async def _async_continuous_scroll(
     
     return True
 
+async def _async_navigate_with_wait(page, nav_coro, name: str) -> bool:
+    if page is None:
+        page = get_page()
+    if not page:
+        return False
+    try:
+        await asyncio.wait_for(nav_coro, timeout=5.0)
+    except Exception as e:
+        logger.debug(f"{name} 失败: {type(e).__name__}: {e}")
+        return False
+    try:
+        await asyncio.wait_for(page.wait_for_load_state("load"), timeout=8.0)
+    except Exception:
+        logger.debug(f"{name} 后 wait_for_load_state 超时，放行")
+    return True
+
 # ── 同步公开 API (调度到后台 loop) ─────────
 
 
@@ -401,57 +417,32 @@ async def _async_page_go_back(page=None):
         page = get_page()
     if not page:
         return False
-    try:
-        await page.go_back()
-        return True
-    except Exception as e:
-        logger.debug(f"go_back 失败: {e}")
-        return False
-
+    return await _async_navigate_with_wait(
+        page, page.go_back(wait_until="commit"), "go_back")
 
 async def _async_page_go_forward(page=None):
     if page is None:
         page = get_page()
     if not page:
         return False
-    try:
-        await page.go_forward()
-        return True
-    except Exception as e:
-        logger.debug(f"go_forward 失败: {e}")
-        return False
-
+    return await _async_navigate_with_wait(
+        page, page.go_forward(wait_until="commit"), "go_forward")
 
 async def _async_page_reload(page=None):
     if page is None:
         page = get_page()
     if not page:
         return False
-    try:
-        await page.reload()
-        return True
-    except Exception as e:
-        logger.debug(f"reload 失败: {e}")
-        return False
-
+    return await _async_navigate_with_wait(
+        page, page.reload(wait_until="commit"), "reload")
 
 async def _async_page_goto(url: str, page=None):
     if page is None:
         page = get_page()
     if not page:
         return False
-    try:
-        await page.goto(url, wait_until="domcontentloaded")
-        # 等页面加载完成, 避免后续 evaluate/click 卡在 pending navigation
-        try:
-            await page.wait_for_load_state("load", timeout=10.0)
-        except Exception:
-            logger.debug(f"goto 后等待 load 超时: {url}")
-        return True
-    except Exception as e:
-        logger.debug(f"goto {url} 失败: {e}")
-        return False
-
+    return await _async_navigate_with_wait(
+        page, page.goto(url, wait_until="commit"), "goto")
 
 def page_go_back() -> bool:
     _ensure_bg()
