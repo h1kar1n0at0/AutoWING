@@ -138,13 +138,13 @@ class AuditionFightFlow(Flow):
     def step(self, ctx: Context) -> Optional[Action]:
         # ─── 空闲等待 ──────────────────────────
         if self._step == "idle":
-            # 超时检测：如果等待超过15秒仍未检测到回合开始，则强制重试
+            # 超时检测：如果等待超过35秒仍未检测到回合开始，则强制重试
             if not hasattr(self, '_wait_start_time') or self._just_entered_wait_turn:
                 self._wait_start_time = time.time()
                 self._just_entered_wait_turn = False
             
             elapsed = time.time() - self._wait_start_time
-            if elapsed > 25:  # 15秒超时
+            if elapsed > 35:  # 35秒超时
                 if not self.guard("audition_recover", max_count=3, window=60):
                         logger.error("视镜流程超时，退出")
                         ctx.signal = StopSignal("视镜流程超时")
@@ -170,13 +170,13 @@ class AuditionFightFlow(Flow):
 
         # ─── 等待下一回合 ──────────────────────
         if self._step == "wait_turn":
-            # 超时检测：如果等待超过15秒仍未检测到回合开始，则强制重试
+            # 超时检测：如果等待超过35秒仍未检测到回合开始，则强制重试
             if not hasattr(self, '_wait_start_time') or self._just_entered_wait_turn:
                 self._wait_start_time = time.time()
                 self._just_entered_wait_turn = False
             
             elapsed = time.time() - self._wait_start_time
-            if elapsed > 25:  # 15秒超时
+            if elapsed > 35:  # 35秒超时
                 if not self.guard("audition_recover", max_count=3, window=60):
                     logger.error("视镜流程超时，退出")
                     ctx.signal = StopSignal("视镜流程超时")

@@ -82,14 +82,14 @@
                                     <span class="toggle-text">自动处理约定事件</span>
                                 </label>
                             </div>
-                            <div class="setting-item setting-item">
+                            <div class="setting-item">
                                 <label class="setting-label">连续挖矿</label>
                                 <label class="toggle-row">
                                     <input type="checkbox" id="cfgAutoContinuousMining">
                                     <span class="toggle-text">启用自动连续挖矿</span>
                                 </label>
                             </div>
-                            <div class="setting-item setting-item">
+                            <div class="setting-item">
                                 <label class="setting-label">执行到某季度初停止</label>
                                 <select id="cfgStopAtSeasonStart" class="setting-select">
                                     <option value="0">不启用</option>
@@ -98,6 +98,13 @@
                                     <option value="3">第 3 季度</option>
                                     <option value="4">第 4 季度</option>
                                 </select>
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">是否启用跳刀操作</label>
+                                <label class="toggle-row">
+                                    <input type="checkbox" id="cfgEnableHashSkipping">
+                                    <span class="toggle-text">启用跳刀操作</span>
+                                </label>
                             </div>
                             <div class="setting-item setting-item-full">
                                 <label class="setting-label">窗口标题</label>
@@ -251,30 +258,77 @@
                 </section>
             </div>
 
-            <!-- 右列: 窗口绑定 + 任务控制 + 运行日志 -->
+            <!-- 右列: 当前画面 + 窗口绑定 + 任务控制 + 运行日志 -->
             <div class="panel-right">
-                <section class="card">
+                <section class="card canvas-preview-card" id="canvasPreviewCard">
+                    <div class="card-title">
+                        <span>🖼️ 当前游戏画面</span>
+                        <div class="card-title-actions">
+                            <button class="btn btn-sm btn-outline" id="canvasPreviewToggle"
+                                type="button" onclick="toggleCanvasPreview()">暂停</button>
+                            <button class="btn btn-sm btn-outline collapse-btn" type="button"
+                                title="展开或收起" aria-label="展开或收起" aria-expanded="true"
+                                onclick="toggleCard('canvasPreviewCard')"></button>
+                        </div>
+                    </div>
+                    <div class="card-body canvas-preview-body collapsible-body">
+                        <div class="canvas-preview-frame">
+                            <img id="canvasPreviewImage" class="canvas-preview-image"
+                                alt="当前游戏画面">
+                            <div id="canvasPreviewStatus" class="canvas-preview-status">
+                                等待 Canvas 连接...
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card" id="windowBindingCard">
                     <div class="card-title">🎯 窗口绑定</div>
                     <div class="card-body">
                         <div class="info-row">
                             <span class="label">窗口:</span>
                             <span class="value" id="windowStatus">未绑定</span>
                         </div>
+                        <div class="info-row">
+                            <span class="label">Canvas:</span>
+                            <span class="value" id="canvasSize">未检测</span>
+                        </div>
                         <div class="btn-group">
                             <button class="btn btn-primary" onclick="detectCanvas()">CDP 检测</button>
-                            <button class="btn btn-outline" onclick="resizeCanvas()">调整窗口</button>
                             <button class="btn btn-outline" onclick="restartBrowserWithCDP()">重启浏览器(CDP)</button>
-                            <button class="btn btn-outline" onclick="bindWindow()">绑定窗口</button>
                         </div>
                     </div>
                 </section>
 
-                <section class="card">
-                    <div class="card-title">🎮 任务控制</div>
-                    <div class="card-body">
+                <section class="card" id="taskControlCard">
+                    <div class="card-title">
+                        <span>🎮 任务控制</span>
+                        <button class="btn btn-sm btn-outline collapse-btn" type="button"
+                            title="展开或收起" aria-label="展开或收起" aria-expanded="true"
+                            onclick="toggleCard('taskControlCard')"></button>
+                    </div>
+                    <div class="card-body collapsible-body">
                         <div class="info-row">
                             <span class="label">状态:</span>
                             <span class="value" id="taskStatus">空闲</span>
+                        </div>
+                        <div class="task-info-grid">
+                            <div class="info-row">
+                                <span class="label">流程:</span>
+                                <span class="value" id="taskFlow">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">阶段:</span>
+                                <span class="value" id="taskGlobalState">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">季度:</span>
+                                <span class="value" id="taskSeason">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">执行次数:</span>
+                                <span class="value" id="taskRunCount">-</span>
+                            </div>
                         </div>
                         <div class="btn-group">
                             <button class="btn btn-success" onclick="startTask()">▶ 启动</button>

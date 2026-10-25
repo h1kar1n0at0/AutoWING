@@ -134,11 +134,11 @@ def click_energy_item() -> SequenceAction:
     """使用体力道具"""
     return SequenceAction(actions=(
             ClickAction(x=1111, y=600, description="使用体力道具"),
-            WaitAction(seconds=0.15),
+            WaitAction(seconds=0.3),
             ClickAction(x=923, y=746, description="确认"),
-            WaitAction(seconds=0.15),
+            WaitAction(seconds=0.3),
             ClickAction(x=794, y=627, description="关闭"),
-            WaitAction(seconds=0.15),
+            WaitAction(seconds=0.3),
             click_training_confirm(),
         ))
 

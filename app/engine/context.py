@@ -130,6 +130,10 @@ class Context:
 
     def step_produce_page(self) -> BaseAction:
         """选择触发浏览器'前进'还是'后退'（不限流）"""
+        if not config_manager.config.enable_hash_skipping:
+            # 未启用跳刀时不进行操作
+            from app.engine.action import WaitAction
+            return WaitAction(seconds=1.5)
         if self.should_advance_page:
             self.should_advance_page = False  
             return go_forward()
@@ -140,9 +144,9 @@ class Context:
         """
         带限流的 step_produce_page
         
-        32 秒窗口内最多允许 2 次跳转，超过则返回 WaitAction
+        窗口内最多允许 2 次跳转，超过或未启用跳刀时则返回 WaitAction
         """
-        if self.can_jump():
+        if self.can_jump() and config_manager.config.enable_hash_skipping:
             self._record_jump()
             count = self._get_jump_count()
             logger.debug(f"跳转记录: {count}/{self._JUMP_MAX_COUNT} (窗口: {self._JUMP_WINDOW}s)")
@@ -156,3 +160,12 @@ class Context:
         """手动重置跳转记录（用于特殊场景）"""
         self.season_data["jump_records"] = []
         logger.debug("跳转记录已重置")
+
+    def snapshot(self) -> Dict[str, Any]:
+        """返回供控制面板使用的稳定运行状态。"""
+        return {
+            "global_state": self.global_state.name.lower(),
+            "season": self.season.to_string() if self.season else None,
+            "page": str(self.season_data.get("page", "unknown")).lower(),
+            "remaining_weeks": self.remaining_weeks,
+        }

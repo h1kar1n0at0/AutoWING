@@ -17,8 +17,8 @@ class DesktopWindow:
     """pywebview 原生窗口管理器"""
 
     def __init__(self, url: str, title: str = "AutoWING",
-                 width: int = 860, height: int = 600,
-                 min_width: int = 580, min_height: int = 420,
+                 width: int = 900, height: int = 760,
+                 min_width: int = 700, min_height: int = 600,
                  resizable: bool = True):
         self.url = url
         self.title = title

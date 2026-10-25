@@ -10,6 +10,67 @@ const taskStatus = $("taskStatus");
 const statusBadge = $("statusBadge");
 const logContainer = $("logContainer");
 const windowTitle = $("windowTitle");
+const canvasPreviewImage = $("canvasPreviewImage");
+const canvasPreviewStatus = $("canvasPreviewStatus");
+const canvasPreviewToggle = $("canvasPreviewToggle");
+let canvasPreviewPaused = false;
+let canvasPreviewInFlight = false;
+let canvasPreviewCalibrated = false;
+
+function setText(id, value) {
+    const element = $(id);
+    if (element) element.textContent = value;
+}
+
+function formatTaskState(state) {
+    return {
+        idle: "空闲",
+        running: "运行中",
+        stopping: "停止中",
+        stopped: "已停止",
+        failed: "异常",
+    }[state] || state || "空闲";
+}
+
+function formatEngineState(state) {
+    if (!state) return "-";
+    const raw = String(state);
+    const lower = raw.toLowerCase();
+    if (lower === "s5") return "W.I.N.G.";
+    return raw.toUpperCase();
+}
+
+function refreshCanvasPreview(calibrated) {
+    if (canvasPreviewPaused || canvasPreviewInFlight || !canvasPreviewImage) return;
+    if (!calibrated) {
+        canvasPreviewImage.removeAttribute("src");
+        if (canvasPreviewStatus) canvasPreviewStatus.textContent = "等待 Canvas 连接...";
+        return;
+    }
+
+    canvasPreviewInFlight = true;
+    if (canvasPreviewStatus) canvasPreviewStatus.textContent = "正在更新...";
+    canvasPreviewImage.onload = () => {
+        canvasPreviewInFlight = false;
+        if (canvasPreviewStatus) {
+            const time = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+            canvasPreviewStatus.textContent = `已更新 ${time}`;
+        }
+    };
+    canvasPreviewImage.onerror = () => {
+        canvasPreviewInFlight = false;
+        if (canvasPreviewStatus) canvasPreviewStatus.textContent = "画面获取失败";
+    };
+    canvasPreviewImage.src = `/api/capture-canvas?preview=${Date.now()}`;
+}
+
+function toggleCanvasPreview() {
+    canvasPreviewPaused = !canvasPreviewPaused;
+    if (canvasPreviewToggle) {
+        canvasPreviewToggle.textContent = canvasPreviewPaused ? "继续" : "暂停";
+    }
+    if (!canvasPreviewPaused) refreshCanvasPreview(canvasPreviewCalibrated);
+}
 
 // ── 状态轮询 ─────────────────────────────
 
@@ -28,14 +89,25 @@ async function refreshStatus() {
             statusBadge.className = "badge";
             windowStatus.textContent = "未绑定";
         }
+        const canvas = data.canvas || {};
+        canvasPreviewCalibrated = Boolean(data.calibrated);
+        setText("canvasSize", data.calibrated && canvas.width && canvas.height
+            ? `${canvas.width} × ${canvas.height}` : "未检测");
+        refreshCanvasPreview(Boolean(data.calibrated));
 
         // 任务状态
         if (data.task && data.task.name) {
-            taskStatus.textContent =
-                `${data.task.name} [${data.task.state}]`;
+            taskStatus.textContent = `${data.task.name} · ${formatTaskState(data.task.state)}`;
         } else {
             taskStatus.textContent = "空闲";
         }
+        const engine = data.engine || {};
+        setText("taskFlow", engine.flow || "-");
+        setText("taskGlobalState", formatEngineState(engine.global_state));
+        setText("taskSeason", engine.season ? formatEngineState(engine.season) : "-");
+        setText("taskPage", engine.page ? formatEngineState(engine.page) : "-");
+        setText("taskRunCount", engine.run_count !== undefined
+            ? `${engine.run_count}${engine.run_target ? ` / ${engine.run_target}` : ""}` : "-");
     } catch (e) {
         console.error("状态刷新失败:", e);
     }
@@ -44,6 +116,7 @@ async function refreshStatus() {
 // 每 2 秒轮询一次
 setInterval(refreshStatus, 2000);
 refreshStatus();
+setInterval(() => refreshCanvasPreview(canvasPreviewCalibrated), 1000);
 
 // ── Canvas 检测 ──────────────────────────
 
@@ -164,6 +237,7 @@ function getSettingsFromUI() {
         handle_agreement: $("cfgHandleAgreement").checked,
         auto_continuous_mining: $("cfgAutoContinuousMining").checked,
         stop_at_season_start: parseInt($("cfgStopAtSeasonStart").value) || 0,
+        enable_hash_skipping: $("cfgEnableHashSkipping").checked,
         browser_path: $("browserPath").value,
         wait_offset: clampNumber($("cfgWaitOffset").value, 0, 10, 0),
         pre_wait_offset: clampNumber($("cfgPreWaitOffset").value, 0, 10, 0),
@@ -191,6 +265,7 @@ function setSettingsToUI(cfg) {
     if (cfg.handle_agreement !== undefined) $("cfgHandleAgreement").checked = cfg.handle_agreement;
     if (cfg.auto_continuous_mining !== undefined) $("cfgAutoContinuousMining").checked = cfg.auto_continuous_mining;
     if (cfg.stop_at_season_start !== undefined) $("cfgStopAtSeasonStart").value = cfg.stop_at_season_start;
+    if (cfg.enable_hash_skipping !== undefined) $("cfgEnableHashSkipping").checked = cfg.enable_hash_skipping;
     if (cfg.browser_path !== undefined) $("browserPath").value = cfg.browser_path;
     if (cfg.wait_offset !== undefined) $("cfgWaitOffset").value = clampNumber(cfg.wait_offset, 0, 10, 0);
     if (cfg.pre_wait_offset !== undefined) $("cfgPreWaitOffset").value = clampNumber(cfg.pre_wait_offset, 0, 10, 0);

@@ -112,6 +112,72 @@ body {
     flex: 1.1;
 }
 
+/* ── Canvas Preview ───────────────────── */
+
+.canvas-preview-card {
+    flex-shrink: 0;
+}
+
+.canvas-preview-body {
+    padding: 8px 10px 10px;
+}
+
+.card-title-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.canvas-preview-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1600 / 902;
+    min-height: 120px;
+    max-height: 160px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #10111d;
+}
+
+.canvas-preview-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.canvas-preview-status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    color: var(--text-dim);
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.canvas-preview-image[src] + .canvas-preview-status {
+    align-items: flex-end;
+    justify-content: flex-start;
+    background: linear-gradient(transparent 65%, rgba(0, 0, 0, 0.65));
+    color: #d7d8e6;
+    font-size: 10px;
+}
+
+.task-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 12px;
+    margin-top: 2px;
+}
+
+.task-info-grid .info-row {
+    min-width: 0;
+}
+
 /* ── Cards ─────────────────────────────── */
 
 .card {
@@ -561,10 +627,10 @@ body {
 /* ── Log ───────────────────────────────── */
 
 .log-card {
-    flex: 1;
+    flex: 1 1 180px;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: 180px;
 }
 
 .log-body {

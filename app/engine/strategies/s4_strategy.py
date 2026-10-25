@@ -63,12 +63,14 @@ def _get_main_stat_action(ctx):
                 if leading_digit_result[0] == 4:
                     audition_count = 0
                     ctx.season_data["audition_count"] = audition_count
-        elif audition_count == 5:
+        elif audition_count == 4:
                     leading_digit_result = _detector.detect_leading_digit(digits="123456789")
+                    if not leading_digit_result:
+                        logger.warning("未识别出粉丝数")
                     if leading_digit_result:
                         logger.info(f"当前粉丝数首位：{leading_digit_result[0]}")
                         if leading_digit_result[0] != 1:
-                            audition_count = 4
+                            audition_count = 3
                             ctx.season_data["audition_count"] = audition_count
         if audition_count == 0:
             logger.info("进行100000粉丝视镜")
@@ -125,13 +127,17 @@ def _get_main_stat_action(ctx):
         logger.info("策略选择为 140，进行视镜连打")
         if audition_count == 4:
             leading_digit_result = _detector.detect_leading_digit(digits="45")
+            if not leading_digit_result:
+                logger.warning("未识别出粉丝数")
             if leading_digit_result:
                 logger.info(f"当前粉丝数首位：{leading_digit_result[0]}")
                 if leading_digit_result[0] == 4:
                     audition_count = 3
                     ctx.season_data["audition_count"] = audition_count
         elif audition_count == 7:
-                    leading_digit_result = _detector.detect_leading_digit(digits="45")
+                    leading_digit_result = _detector.detect_leading_digit(digits="123456789")
+                    if not leading_digit_result:
+                        logger.warning("未识别出粉丝数")                    
                     if leading_digit_result:
                         logger.info(f"当前粉丝数首位：{leading_digit_result[0]}")
                         if leading_digit_result[0] != 1:

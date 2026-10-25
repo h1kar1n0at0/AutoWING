@@ -26,7 +26,7 @@ from app.engine.action_utils import (
     continuous_scroll,
 )
 from app.engine.config_models import config_manager
-from app.engine.flows.base import Flow, SwitchFlowSignal
+from app.engine.flows.base import Flow, SwitchFlowSignal, StopSignal
 from app.engine.context import Context
 from app.engine.detector import TemplateDetector
 from app.engine.state import GlobalState
@@ -86,7 +86,10 @@ class PreTrainingFlow(Flow):
                 return WaitAction(seconds=0.5)
             logger.info("开始育成前设置...")
             self._step = PreTrainingStep.SWITCH_TAB
-            return click_switch_training_tab()
+            return SequenceAction(actions=(
+                WaitAction(seconds=0.06),
+                click_switch_training_tab()
+            ))
 
         # ─── SWITCH_TAB: 切换育成 tab ─────────
         if self._step == PreTrainingStep.SWITCH_TAB:
@@ -173,6 +176,7 @@ class PreTrainingFlow(Flow):
                         WaitAction(seconds=0.07)
                     ))
                 logger.info("mem 未检测到，终止执行")
+                ctx.signal = StopSignal(reason="mem 未检测到")
                 return None
             return SequenceAction(actions=(click_training_confirm(),
                                            WaitAction(0.07),))
@@ -188,6 +192,7 @@ class PreTrainingFlow(Flow):
                     logger.info("使用体力道具")
                     return click_energy_item()
                 logger.warning("体力不足但未启用自动使用，停止执行")
+                ctx.signal = StopSignal(reason="体力不足但未启用自动使用")
                 self._done = True
                 return None
             return WaitAction(seconds=0.05)
@@ -218,7 +223,7 @@ class PreTrainingFlow(Flow):
                 ))
             
             self._wait_start_frame_count += 1
-            if self._wait_start_frame_count == 5:
+            if self._wait_start_frame_count % 5 == 0:
                 clear_cache()
                 need_item = self._detector.detect_energy_item()
                 if need_item:
@@ -226,6 +231,7 @@ class PreTrainingFlow(Flow):
                         logger.info("使用体力道具")
                         return click_energy_item()
                     logger.warning("体力不足但未启用自动使用，停止执行")
+                    ctx.signal = StopSignal(reason="体力不足但未启用自动使用")
                     self._done = True
                     return None
             if self._wait_start_frame_count > 600:
