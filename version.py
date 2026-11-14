@@ -1,6 +1,6 @@
 """版本信息"""
 
-VERSION = "0.1.9-alpha"
+VERSION = "0.2.0-alpha"
 APP_NAME = "AutoWING"
 
 # 窗口标题

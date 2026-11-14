@@ -1,0 +1,452 @@
+// ==UserScript==
+// @name         Enza Audition Buff & Damage API
+// @namespace    enza.audition.overlay.api
+// @version      1.5
+// @description  在 window.__ENZA_OVERLAY_API__ 暴露被动 buff 总量与技能预计伤害数据，供外部 CDP 调用
+// @match        *://shinycolors.enza.fun/*
+// @run-at       document-start
+// @grant        none
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  const log = (...a) => console.info('%c[ENZA-API]', 'color:#4caf50;font-weight:bold', ...a);
+  const TAG = '__enzaOverlayInjected__';
+
+  if (window.__ENZA_OVERLAY_API__) return;
+
+  /* ============================================================
+   * 1. require 定位
+   * ============================================================ */
+  function scoreName(name) {
+    let score = 0;
+    const WHITELIST = /^(webpackChunk|dataLayer|Stripe|OneTrust|OtTrusted|Onetrust|Raven|PIXI|pixiParticles|google_|__SENTRY|nativeBridge|__REAL|__STORE|System|asap|regeneratorRuntime|_babelPolyfill)/i;
+    if (WHITELIST.test(name)) return -100;
+    const len = name.length;
+    if (len >= 8 && len <= 20) score += 20;
+    else if (len >= 5 && len < 8) score += 8;
+    else if (len > 20) score += 5;
+    const hasLower = /[a-z]/.test(name);
+    const hasUpper = /[A-Z]/.test(name);
+    const hasDigit = /\d/.test(name);
+    score += [hasLower, hasUpper, hasDigit].filter(Boolean).length * 8;
+    const READABLE = /(webpack|chunk|data|stripe|layer|trust|sentry|bridge|store|real|game|enza|audition|concert|user|agent|module|require|global|window|document)/i;
+    if (READABLE.test(name)) score -= 30;
+    if (/^_+/.test(name) || /_+$/.test(name)) score -= 10;
+    if (/^ez[a-z]{0,3}$/i.test(name)) score -= 5;
+    const vowels = (name.match(/[aeiou]/gi) || []).length;
+    const vowelRatio = vowels / len;
+    if (vowelRatio < 0.2) score += 15;
+    else if (vowelRatio < 0.35) score += 8;
+    if (/(.)\1{2,}/.test(name)) score -= 10;
+    if (/^[a-z0-9]{8,20}$/i.test(name) && !READABLE.test(name)) score += 10;
+    return score;
+  }
+
+  let injectedArrays = null;   // WeakSet：每个数组只 push 一次
+  let resolveDone = false;     // 是否已拿到 require
+  let gameRequire = null;
+  let scanFailCount = 0;       // 连续失败次数，用于降级
+  const LIGHT_MODE_AFTER = 3;  // 连续 3 次拿不到就只轮询 __AUDITION_MANAGER__
+
+  function collectRequires() {
+    if (resolveDone) return [];
+    if (!injectedArrays) injectedArrays = new WeakSet();
+
+    const candidates = [];
+    for (const k of Object.keys(window)) {
+      let v;
+      try { v = window[k]; } catch (e) { continue; }
+      if (Array.isArray(v) && typeof v.push === 'function' && v.push !== Array.prototype.push) {
+        candidates.push({ key: k, arr: v, nameScore: scoreName(k) });
+      }
+    }
+    const results = [];
+    for (const c of candidates) {
+      if (injectedArrays.has(c.arr)) continue;
+      injectedArrays.add(c.arr);
+      try {
+        let got = null;
+        c.arr.push([['__enza_hook__'], {}, function (req) { got = req; }]);
+        if (typeof got === 'function') {
+          const mods = got.m || {};
+          const modCount = Object.keys(mods).length;
+          let hasConcert = false;
+          for (const id of Object.keys(mods)) {
+            try {
+              if (/_concertService\s*=/.test(mods[id].toString())) { hasConcert = true; break; }
+            } catch (e) {}
+          }
+          results.push({ key: c.key, req: got, modCount, nameScore: c.nameScore, hasConcert });
+        }
+      } catch (e) {}
+    }
+    return results;
+  }
+
+  function pickBest(results) {
+    if (!results.length) return null;
+    results.sort((a, b) => {
+      if (a.hasConcert !== b.hasConcert) return b.hasConcert - a.hasConcert;
+      if (a.nameScore !== b.nameScore) return b.nameScore - a.nameScore;
+      return b.modCount - a.modCount;
+    });
+    return results[0];
+  }
+
+  function findFirstIdBySource(req, predicate) {
+    const mods = req.m || {};
+    for (const id of Object.keys(mods)) {
+      let src;
+      try { src = mods[id].toString(); } catch (e) { continue; }
+      if (predicate(src)) return id;
+    }
+    return null;
+  }
+
+  function resolveClass(req, id) {
+    try {
+      const exp = req(Number(id));
+      if (!exp) return null;
+      const C = exp.A || exp.default;
+      if (typeof C === 'function' && C.prototype && typeof C.prototype.start === 'function') return C;
+    } catch (e) {}
+    return null;
+  }
+
+  /* ============================================================
+   * 1.5 bounds 缓存
+   * ============================================================ */
+  let boundsCache = new WeakMap();
+  let boundsGenMap = new WeakMap();
+  let boundsCacheGen = 0;
+
+  function clearBoundsCache() {
+    boundsCache = new WeakMap();
+    boundsGenMap = new WeakMap();
+    boundsCacheGen++;
+  }
+
+  function getBounds(obj) {
+    if (!obj) return null;
+    const gen = boundsGenMap.get(obj);
+    if (gen === boundsCacheGen && boundsCache.has(obj)) return boundsCache.get(obj);
+    let result = null;
+    try {
+      const br = obj._boundsRect;
+      if (br && isFinite(br.x) && isFinite(br.y) && br.width > 0 && br.height > 0) {
+        result = { x: br.x, y: br.y, width: br.width, height: br.height };
+      }
+    } catch (e) {}
+    if (!result) {
+      try {
+        if (typeof obj.getBounds === 'function') {
+          const b = obj.getBounds();
+          if (b && isFinite(b.x) && isFinite(b.y) && b.width >= 0 && b.height >= 0) {
+            result = { x: b.x, y: b.y, width: b.width, height: b.height };
+          }
+        }
+      } catch (e) {}
+    }
+    boundsCache.set(obj, result);
+    boundsGenMap.set(obj, boundsCacheGen);
+    return result;
+  }
+
+  /* ============================================================
+   * 2. 数据读取
+   * ============================================================ */
+  let judgeHpMap = new Map();
+
+  function getJudgeHpMap() {
+    judgeHpMap.clear();
+    const am = window.__AUDITION_MANAGER__;
+    const cs = am && am._concertService;
+    if (!cs || !Array.isArray(cs._actors)) return judgeHpMap;
+    for (let i = 0; i < cs._actors.length; i++) {
+      const a = cs._actors[i];
+      if (!a || a._role !== 'judge') continue;
+      judgeHpMap.set(String(a._id), Number(a._hp) || 0);
+    }
+    return judgeHpMap;
+  }
+
+  function damagePctOfCurrentHp(damage, judgeHp) {
+    const dmg = Number(damage) || 0;
+    const hp = Number(judgeHp) || 0;
+    if (hp <= 0) return null;
+    return (dmg / hp) * 100;
+  }
+
+  const skillCardsResult = { cards: [] };
+  const _pickedBuf = [];
+
+  function readSkillCards() {
+    const am = window.__AUDITION_MANAGER__;
+    skillCardsResult.cards.length = 0;
+    skillCardsResult.error = null;
+    if (!am) { skillCardsResult.error = 'no AuditionGameManager'; return skillCardsResult; }
+    const hand = am._skillCardHand;
+    const store = am._store || (am._concertService && am._concertService._store);
+    if (!hand || !hand.children) { skillCardsResult.error = 'no _skillCardHand'; return skillCardsResult; }
+    if (!store || !Array.isArray(store._activeSkills)) { skillCardsResult.error = 'no _store._activeSkills'; return skillCardsResult; }
+
+    const isMemoryCard = card => card && (card._isMemoryAppeal === true || card._memorySkillGroup != null);
+    const getX = card => {
+      const b = getBounds(card);
+      if (b) return b.x;
+      return typeof card.x === 'number' ? card.x : 0;
+    };
+
+    _pickedBuf.length = 0;
+    const children = hand.children;
+    for (let i = 0; i < children.length; i++) {
+      const card = children[i];
+      if (!card || isMemoryCard(card)) continue;
+      _pickedBuf.push({ card, childIndex: i, x: getX(card) });
+    }
+    _pickedBuf.sort((a, b) => a.x - b.x);
+    const picked = _pickedBuf.slice(0, Math.min(3, _pickedBuf.length));
+
+    const hpMap = getJudgeHpMap();
+    for (let i = 0; i < picked.length; i++) {
+      const { card, childIndex } = picked[i];
+      const skillId = card._skillId;
+      const idolId = card._idolId;
+      let skill = null;
+      for (let j = 0; j < store._activeSkills.length; j++) {
+        const s = store._activeSkills[j];
+        if (String(s.id) === String(skillId) && s.idol && String(s.idol.id) === String(idolId)) {
+          skill = s;
+          break;
+        }
+      }
+      if (!skill) {
+        skillCardsResult.cards.push({ childIndex, matched: false, skillId, idolId });
+        continue;
+      }
+      const comment = skill.comment || '';
+      const premeasuredDamages = [];
+      const pds = skill.premeasuredDamages || [];
+      for (let k = 0; k < pds.length; k++) {
+        const d = pds[k];
+        const jid = String(d.targetJudgeId);
+        const hp = hpMap.get(jid);
+        premeasuredDamages.push({
+          targetJudgeId: jid,
+          damage: Number(d.damage) || 0,
+          judgeHp: hp == null ? null : hp,
+          pctOfCurrentHp: damagePctOfCurrentHp(d.damage, hp)
+        });
+      }
+      skillCardsResult.cards.push({
+        childIndex,
+        matched: true,
+        skillId,
+        idolId,
+        skillName: skill.name,
+        comment,
+        isAll: /全体|全観客|全員/.test(comment),
+        premeasuredDamages
+      });
+    }
+    return skillCardsResult;
+  }
+
+  const passiveResult = { total: {}, details: [] };
+
+  function getPassiveBuffTotal() {
+    const am = window.__AUDITION_MANAGER__;
+    passiveResult.total = {};
+    passiveResult.details.length = 0;
+    passiveResult.error = null;
+    passiveResult.count = 0;
+    if (!am) { passiveResult.error = 'no AuditionGameManager'; return passiveResult; }
+    const skills = Array.isArray(am._currentPassiveSkills) ? am._currentPassiveSkills : [];
+    const total = passiveResult.total;
+    for (let si = 0; si < skills.length; si++) {
+      const skill = skills[si];
+      const effects = Array.isArray(skill.skillEffects) ? skill.skillEffects : [];
+      let d = null;
+      for (let ei = 0; ei < effects.length; ei++) {
+        const eff = effects[ei];
+        if (!eff || typeof eff.attribute !== 'string' || typeof eff.value !== 'number') continue;
+        total[eff.attribute] = (total[eff.attribute] || 0) + eff.value;
+        if (!d) d = { index: si, id: skill.id, name: skill.name, effects: [] };
+        d.effects.push({
+          attribute: eff.attribute,
+          value: eff.value,
+          effectType: eff.effectType,
+          targetGroup: eff.targetGroup,
+          effectName: eff.effectName
+        });
+      }
+      if (d) passiveResult.details.push(d);
+    }
+    passiveResult.count = skills.length;
+    return passiveResult;
+  }
+
+  /* ============================================================
+   * 3. 对外 API
+   * ============================================================ */
+  window.__ENZA_OVERLAY_API__ = Object.freeze({
+    ready() {
+      return !!window.__AUDITION_MANAGER__;
+    },
+    passiveBuff() {
+      const am = window.__AUDITION_MANAGER__;
+      if (!am) return { ready: false, total: {}, details: [], count: 0, error: 'no AuditionGameManager' };
+      const r = getPassiveBuffTotal();
+      return {
+        ready: true,
+        total: Object.assign({}, r.total),
+        details: r.details.map(d => ({
+          index: d.index,
+          id: d.id,
+          name: d.name,
+          effects: d.effects.map(e => ({
+            attribute: e.attribute,
+            value: e.value,
+            effectType: e.effectType,
+            targetGroup: e.targetGroup,
+            effectName: e.effectName
+          }))
+        })),
+        count: r.count,
+        error: r.error
+      };
+    },
+    skillCards() {
+      const am = window.__AUDITION_MANAGER__;
+      if (!am) return { ready: false, cards: [], error: 'no AuditionGameManager' };
+      clearBoundsCache();
+      const r = readSkillCards();
+      return {
+        ready: true,
+        cards: r.cards.map(c => ({
+          childIndex: c.childIndex,
+          matched: c.matched,
+          skillId: c.skillId,
+          idolId: c.idolId,
+          skillName: c.skillName,
+          comment: c.comment,
+          isAll: c.isAll,
+          premeasuredDamages: (c.premeasuredDamages || []).map(d => ({
+            targetJudgeId: d.targetJudgeId,
+            damage: d.damage,
+            judgeHp: d.judgeHp,
+            pctOfCurrentHp: d.pctOfCurrentHp
+          }))
+        })),
+        error: r.error
+      };
+    }
+  });
+
+  /* ============================================================
+   * 4. hook 安装
+   * ============================================================ */
+
+  let hookAttempted = false;
+
+  function tryHook() {
+    if (window[TAG]) return true;
+    if (hookAttempted) return true;
+    hookAttempted = true;
+
+    if (!gameRequire) {
+      const results = collectRequires();
+      if (!results.length) {
+        scanFailCount++;
+        // 连续失败够多后，不再全量扫 window，只等 __AUDITION_MANAGER__
+        if (scanFailCount >= LIGHT_MODE_AFTER) {
+          hookAttempted = false;
+          return false;
+        }
+        hookAttempted = false;
+        return false;
+      }
+      const best = pickBest(results);
+      if (!best) { hookAttempted = false; return false; }
+      gameRequire = best.req;
+      resolveDone = true;
+      scanFailCount = 0;
+    }
+
+    const req = gameRequire;
+    let id = findFirstIdBySource(req, src =>
+      /_concertService\s*=/.test(src) && /_liveSpineAnimation/.test(src)
+    );
+    if (!id) id = findFirstIdBySource(req, src =>
+      /_concertService\s*=/.test(src) && /_createJudgeList/.test(src)
+    );
+    if (!id) { hookAttempted = false; return false; }
+
+    const AuditionGameManager = resolveClass(req, id);
+    if (!AuditionGameManager) { hookAttempted = false; return false; }
+
+    const proto = AuditionGameManager.prototype;
+    if (proto.__enzaOverlayHooked) {
+      window[TAG] = true;
+      hookAttempted = true;
+      return true;
+    }
+    proto.__enzaOverlayHooked = true;
+
+    const origStart = proto.start;
+    proto.start = function () {
+      window.__AUDITION_MANAGER__ = this;
+      return origStart.apply(this, arguments);
+    };
+
+    const origJudge = proto._createJudgeList;
+    if (typeof origJudge === 'function') {
+      proto._createJudgeList = function () {
+        window.__AUDITION_MANAGER__ = this;
+        return origJudge.apply(this, arguments);
+      };
+    }
+
+    window[TAG] = true;
+    hookAttempted = true;
+    return true;
+  }
+
+  /* ============================================================
+   * 5. 调度：指数退避 500ms → 4s 封顶；轻量模式下只轮询 __AUDITION_MANAGER__
+   * ============================================================ */
+  let backoff = 500;
+  const MAX_BACKOFF = 4000;
+  let totalTicks = 0;
+  const MAX_TICKS = 40;   // 约 2 分钟上限，超过就放弃
+
+  function scheduleNext() {
+    setTimeout(() => {
+      totalTicks++;
+
+      // 轻量模式：连续失败多次后，只检查 __AUDITION_MANAGER__ 是否出现
+      // 不再 Object.keys(window) 全量扫描，几乎零开销
+      if (scanFailCount >= LIGHT_MODE_AFTER && !window.__AUDITION_MANAGER__) {
+        if (totalTicks >= MAX_TICKS) {
+          return;
+        }
+        backoff = Math.min(backoff * 2, MAX_BACKOFF);
+        scheduleNext();
+        return;
+      }
+
+      if (tryHook()) return;
+
+      if (totalTicks >= MAX_TICKS) {
+        return;
+      }
+
+      backoff = Math.min(backoff * 2, MAX_BACKOFF);
+      scheduleNext();
+    }, backoff);
+  }
+
+  scheduleNext();
+})();

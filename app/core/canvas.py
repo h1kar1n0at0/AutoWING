@@ -15,7 +15,9 @@ import subprocess
 import time
 import winreg
 from typing import Optional
+import json
 
+import urllib.parse
 import urllib.request
 import win32gui
 import win32process
@@ -26,6 +28,35 @@ logger = logging.getLogger("autowing.canvas")
 
 CDP_PORT_RANGE = list(range(9222, 9230))
 
+_CREATE_NO_WINDOW = 0x08000000  # subprocess.CREATE_NO_WINDOW 的十六进制值
+
+def _open_tab_via_cdp(port: int, url: str, timeout: float = 10.0) -> bool:
+    """通过 CDP HTTP 端点新建标签页并导航到 url"""
+    encoded = urllib.parse.quote(url, safe="")
+    endpoint = f"http://127.0.0.1:{port}/json/new?{encoded}"
+    req = urllib.request.Request(endpoint, method="PUT")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8", "ignore"))
+                logger.info(f"已新建标签页并导航: {data.get('url', url)}")
+                return True
+            logger.warning(f"CDP /json/new 返回 {resp.status}")
+            return False
+    except Exception as e:
+        logger.warning(f"CDP /json/new 失败: {type(e).__name__}: {e}")
+        return False
+    
+def _popen_hidden(args):
+    """启动子进程：隐藏窗口 + 干净的 stdio 句柄，避免 Chromium 继承脏句柄。"""
+    return subprocess.Popen(
+        args,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+        creationflags=_CREATE_NO_WINDOW,
+    )
 
 class CanvasDetector:
     """Canvas 检测器"""
@@ -269,8 +300,14 @@ class CanvasDetector:
             logger.info(f"关闭已有 {browser_exe}...")
             try:
                 subprocess.run(
-                    ["taskkill", "/f", "/im", browser_exe],
-                    capture_output=True, timeout=5)
+                ["taskkill", "/f", "/im", browser_exe],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True,
+                creationflags=_CREATE_NO_WINDOW,
+                timeout=5,
+            )
                 time.sleep(1.5)
             except subprocess.TimeoutExpired:
                 pass
@@ -278,36 +315,47 @@ class CanvasDetector:
                 pass
 
         try:
-            subprocess.Popen([
+            _popen_hidden([
                 browser_path,
                 f"--remote-debugging-port={port}",
                 "--restore-last-session",
                 "--new-window",
-                game_url,
-                # 反检测标志
+                "about:blank",
                 "--disable-blink-features=AutomationControlled",
                 "--excludeSwitches=enable-automation",
                 "--disable-infobars",
                 "--no-first-run",
                 "--no-service-autorun",
-            ], creationflags=subprocess.CREATE_NO_WINDOW)
+            ])
             logger.info(f"已启动 {browser_exe} (CDP:{port})")
 
             # 等待 CDP 端口就绪
             import urllib.request
-            for i in range(20):
+            cdp_ready = False
+            for _ in range(20):
                 time.sleep(1)
                 try:
                     resp = urllib.request.urlopen(
-                        f"http://127.0.0.1:{port}/json/version",
-                        timeout=1)
+                        f"http://127.0.0.1:{port}/json/version", timeout=1)
                     if resp.status == 200:
-                        logger.info(f"CDP 端口 {port} 就绪")
-                        return {"port": port, "path": browser_path}
+                        cdp_ready = True
+                        break
                 except Exception:
                     continue
+            if not cdp_ready:
+                logger.warning("CDP 端口未就绪")
+                return {"port": port, "path": browser_path}
 
-            logger.warning("CDP 端口未就绪")
+            time.sleep(2.0)  # 等扩展加载
+            if not _open_tab_via_cdp(port, game_url):
+                # 兜底：命令行转发
+                _popen_hidden([
+                    browser_path,
+                    f"--remote-debugging-port={port}",
+                    "--new-window",
+                    game_url,
+                ])
+
             return {"port": port, "path": browser_path}
         except Exception as e:
             raise RuntimeError(f"启动失败: {e}")

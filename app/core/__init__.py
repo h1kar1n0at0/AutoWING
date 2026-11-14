@@ -33,6 +33,11 @@ from app.core.canvas_vision import (
     find_all,
     find_with_fallback,
 )
+from app.core.canvas_game_api import (
+    get_game_data,
+    get_passive_buff,
+    get_skill_cards,
+)
 from app.core.clicker import BackgroundClicker, clicker
 from app.core.coord import REF_H, REF_W, CoordSystem, coord
 

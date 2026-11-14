@@ -190,7 +190,10 @@ class PreTrainingFlow(Flow):
             if need_item:
                 if config.use_energy_item:
                     logger.info("使用体力道具")
-                    return click_energy_item()
+                    return SequenceAction(actions=(
+                        click_xy(need_item.x,need_item.y),
+                        click_energy_item()
+                    ))
                 logger.warning("体力不足但未启用自动使用，停止执行")
                 ctx.signal = StopSignal(reason="体力不足但未启用自动使用")
                 self._done = True
@@ -216,9 +219,9 @@ class PreTrainingFlow(Flow):
                 # 3. 返回执行点击开始按钮的组合动作
                 return SequenceAction(actions=(
                     click_xy(start_hit.x, start_hit.y, desc="开始育成"),
-                    WaitAction(seconds=0.5),
+                    WaitAction(seconds=0.55),
                     go_to_produce1(),
-                    WaitAction(seconds=0.15),
+                    WaitAction(seconds=0.25),
                     go_to_produce2(),               
                 ))
             
@@ -229,7 +232,10 @@ class PreTrainingFlow(Flow):
                 if need_item:
                     if config.use_energy_item:
                         logger.info("使用体力道具")
-                        return click_energy_item()
+                        return SequenceAction(actions=(
+                                                click_xy(need_item.x,need_item.y),
+                                                click_energy_item()
+                                            ))
                     logger.warning("体力不足但未启用自动使用，停止执行")
                     ctx.signal = StopSignal(reason="体力不足但未启用自动使用")
                     self._done = True

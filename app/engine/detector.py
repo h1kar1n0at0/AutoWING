@@ -76,7 +76,7 @@ class TemplateDetector(GameStateDetector):
     # ── 育成前配置 ────────────────────────────
     MEM_SLOT_ROI = (752, 235, 827, 482)          # mem 选择
     START_BUTTON_ROI = (813, 662, 239, 113)       # 开始按钮
-    PAGE_SODA_ROI=(987,293,250,220)
+    PAGE_SODA_ROI=(355,570,870,70)
     PAGE_TRAINING_START=(807,557,260, 250)
 
     # ── HUD ───────────────────────────────────
@@ -317,9 +317,17 @@ class TemplateDetector(GameStateDetector):
         """检测开始按钮是否就绪，返回匹配结果"""
         return find(Templates.pre_training("start"), conf=CONF_MED,region=self.PAGE_TRAINING_START)
 
-    def detect_energy_item(self) -> bool:
-        return find(Templates.pre_training("energy_item"),
-                    conf=CONF_MED,region=self.PAGE_SODA_ROI) is not None
+    def detect_energy_item(self) -> Optional[Hit]:
+        hits = find_all(Templates.pre_training("energy_item"),
+                    conf=CONF_MED,region=self.PAGE_SODA_ROI)
+        result = None
+        if hits:
+            result = hits[0]
+            for hit in hits:
+                if result.x < hit.x:
+                    result = hit
+
+        return result
 
 
     # ═══════════════════════════════════════════
@@ -502,7 +510,7 @@ class TemplateDetector(GameStateDetector):
     def detect_promise_rest(self) -> bool:
         """检测是否处于休息约定待履行状态 (色彩)"""
         return self._check_region_color(
-            526, 741, 20, 20, (16, 186, 24), threshold=0.8)
+            526, 741, 20, 20, (16, 186, 24), threshold=0.4)
 
     def detect_promise_schedule(self) -> bool:
         """检测是否处于日程约定待履行状态 (色彩)"""

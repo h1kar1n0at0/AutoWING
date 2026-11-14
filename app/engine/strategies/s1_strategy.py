@@ -207,7 +207,20 @@ class S1Strategy(SeasonStrategy):
     def get_action(self, page: PageState, ctx: Context) -> Optional[Action]:
         logger.info(f"S1Strategy.get_action 被调用: page={page.name}")
         ctx.season_data["in_multi_step_decision"] = True
-        
+
+        pho_count = ctx.season_data.get("pho_count", 0)
+        if ctx.season==SeasonState.S1 and pho_count+ctx.remaining_weeks<4 and _detector.detect_season_task_completed() is False:
+            ctx.season_data["in_multi_step_decision"] = False
+            logger.info(f"季度任务未完成，进行视镜")
+            return SequenceAction(actions=(
+                            click_schedule(),
+                            WaitForStableAction((0,705,264,624)),
+                            click_audition(),
+                            WaitAction(seconds=0.15),
+                            click_training_confirm(),
+                            WaitAction(seconds=0.05),
+                        ))
+
         if page == PageState.MAIN:
             logger.info("页面: MAIN, 进入决策主入口")
             return self._decide_main(ctx)

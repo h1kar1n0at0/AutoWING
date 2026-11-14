@@ -132,6 +132,8 @@ class TrainingFlow(Flow):
             logger.info("【路标】到达 MAIN 界面，切入决策模式")
             self._sub_state = "main_page"
             self._consecutive_unknowns = 0
+            if config_manager.config.handle_agreement:
+                return WaitAction(seconds=0.85)
             return WaitAction(seconds=0.25)
 
         # C. 探查标志：是否直接触发了视镜前画面？(如视镜前剧情播放完进入战斗)
@@ -458,7 +460,7 @@ class TrainingFlow(Flow):
         # 示例：检测是否有“网络重连”、“确定/关闭”等异常弹窗按钮
         error_hit = self._detector.detect_error_dialog()
         if error_hit:
-            if self._sub_state == self._audition_fight:
+            if self._sub_state == "audition_fight":
                 if ctx.can_jump():
                     ctx._record_jump()
                     return SequenceAction(actions=(
